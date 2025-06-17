@@ -1,0 +1,275 @@
+.mainPage {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 60px; /* BottomNav 높이만큼 */
+  box-sizing: border-box;
+  background: #f7faff;
+}
+
+@media (max-width: 600px) {
+  .mainPage {
+    padding-bottom: 56px;
+    min-height: 100vh;
+  }
+}
+
+.summaryCard {
+    background: #f7faff;
+    border-radius: 24px;
+    box-shadow: 0 4px 16px rgba(120, 180, 255, 0.10);
+    padding: 24px 20px 16px 20px;
+    margin: 20px auto 16px auto;
+    max-width: 400px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .summaryTop {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+  
+  .summaryTime {
+    font-size: 1.1rem;
+    color: #a0b4c8;
+    font-weight: 600;
+  }
+  
+  .summaryRemain {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .kcalCircle {
+    background: linear-gradient(135deg, #e0f3ff 60%, #ffe0f7 100%);
+    border-radius: 50%;
+    width: 90px;
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(120, 180, 255, 0.10);
+    margin-bottom: 4px;
+  }
+  .kcalValue {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #5a8dee;
+  }
+  .kcalUnit {
+    font-size: 1rem;
+    color: #a0b4c8;
+  }
+  .kcalLabel {
+    font-size: 0.9rem;
+    color: #a0b4c8;
+  }
+  
+  .summaryProfile {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .profileCircle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ffe0f7 60%, #e0f3ff 100%);
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(255, 180, 220, 0.10);
+  }
+  
+  .summaryStats {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0 8px 0;
+  }
+  .statLabel {
+    font-size: 0.9rem;
+    color: #a0b4c8;
+  }
+  .statValue {
+    font-size: 1.1rem;
+    color: #5a8dee;
+    font-weight: 600;
+    margin-left: 4px;
+  }
+  
+  .nutrientBar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+  }
+  .nutrientItem {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+  }
+  .nutrientLabel {
+    font-size: 0.8rem;
+    color: #b0b8c8;
+  }
+  .nutrientValue {
+    font-size: 1rem;
+    color: #5a8dee;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+  
+  .mealCard {
+    display: flex;
+    align-items: center;
+    background: #fff9f3;
+    border-radius: 18px;
+    box-shadow: 0 2px 8px rgba(255, 180, 120, 0.08);
+    padding: 14px 18px;
+    margin-bottom: 14px;
+    max-width: 400px;
+    width: 100%;
+    transition: box-shadow 0.2s;
+  }
+  .mealCard:hover {
+    box-shadow: 0 4px 16px rgba(255, 180, 120, 0.16);
+  }
+  
+  .mealIcon {
+    width: 44px;
+    height: 44px;
+    background: #ffe7d1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 16px;
+    font-size: 1.7rem;
+  }
+  .mealImg {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+  
+  .mealInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .mealType {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #ffb86b;
+  }
+  .mealKcal {
+    font-size: 0.95rem;
+    color: #bfae9c;
+    margin-top: 2px;
+  }
+  
+  .mealAddBtn {
+    background: #ffe7d1;
+    color: #ffb86b;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(255, 180, 120, 0.10);
+    transition: background 0.2s, color 0.2s;
+  }
+  .mealAddBtn:hover {
+    background: #ffb86b;
+    color: #fff;
+  }
+  
+  .mealList {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  /* 반응형 스타일 추가 */
+  @media (max-width: 600px) {
+    .summaryCard {
+      padding: 16px 6vw 10px 6vw;
+      margin: 12px auto 10px auto;
+      max-width: 98vw;
+      border-radius: 16px;
+    }
+    .kcalCircle {
+      width: 64px;
+      height: 64px;
+    }
+    .kcalValue {
+      font-size: 1.3rem;
+    }
+    .kcalUnit, .kcalLabel {
+      font-size: 0.8rem;
+    }
+    .summaryProfile {
+      width: 28px;
+      height: 28px;
+    }
+    .profileCircle {
+      width: 24px;
+      height: 24px;
+    }
+    .summaryStats {
+      font-size: 0.9rem;
+    }
+    .nutrientLabel, .nutrientValue {
+      font-size: 0.7rem;
+    }
+    .mealCard {
+      padding: 10px 4vw;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      max-width: 98vw;
+    }
+    .mealIcon {
+      width: 32px;
+      height: 32px;
+      font-size: 1.1rem;
+      margin-right: 10px;
+    }
+    .mealImg {
+      width: 20px;
+      height: 20px;
+    }
+    .mealAddBtn {
+      width: 28px;
+      height: 28px;
+      font-size: 1.1rem;
+    }
+    .mealType {
+      font-size: 0.95rem;
+    }
+    .mealKcal {
+      font-size: 0.8rem;
+    }
+    .mealList {
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+  }
+  

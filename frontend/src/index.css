@@ -1,0 +1,32 @@
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background: #f7faff;
+    min-height: 100vh;
+    box-sizing: border-box;
+  }
+  
+  code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+      monospace;
+  }
+  
+  html {
+    box-sizing: border-box;
+    touch-action: manipulation;
+  }
+  
+  *, *:before, *:after {
+    box-sizing: inherit;
+  }
+  
+  @media (max-width: 600px) {
+    body {
+      font-size: 15px;
+      padding-bottom: 56px; /* BottomNav 높이만큼 */
+    }
+  } 

@@ -1,0 +1,103 @@
+.mealCard {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #FFF9F2;
+  border-radius: 12px;
+  margin: 8px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.foodIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  margin-right: 12px;
+  background: #FFE9D6;
+}
+
+.foodInfo {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.foodName {
+  font-size: 16px;
+  font-weight: 500;
+  color: #FF9A3D;
+  margin: 0;
+}
+
+.calories {
+  font-size: 14px;
+  color: #FF9A3D;
+  margin: 4px 0 0 0;
+}
+
+.addButton {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #FFE9D6;
+  border: none;
+  color: #FF9A3D;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: 12px;
+}
+
+.addButton:hover {
+  background-color: #FFE0C4;
+}
+
+.imageContainer {
+  width: 100%;
+  max-height: 300px;
+  overflow: hidden;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.image {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+}
+
+.buttonContainer {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  flex: 1;
+}
+
+.button:hover {
+  background-color: #0056b3;
+}
+
+.nutritionInfo {
+  margin-top: 16px;
+  padding: 16px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+} 

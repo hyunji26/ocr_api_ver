@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 import io
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ class OCRService:
 
     async def extract_text(self, image_bytes: bytes) -> str:
         """
-        이미지에서 텍스트를 추출합니다.
+        이미지에서 메뉴 이름을 추출합니다.
         """
         try:
             logger.info("이미지 처리 시작")
@@ -33,13 +34,19 @@ class OCRService:
             results = self.reader.readtext(image_np)
             logger.info(f"OCR 결과 수: {len(results)}")
             
-            # 결과 텍스트 추출 및 결합
-            texts = [result[1] for result in results]
-            final_text = ' '.join(texts)
-            logger.info(f"추출된 전체 텍스트: {final_text}")
+            # 결과 텍스트 추출 및 정제
+            menu_items = []
+            for bbox, text, conf in results:
+                # 숫자나 특수문자만 있는 텍스트는 제외 (가격, 기호 등)
+                if re.match(r'^[가-힣a-zA-Z\s]+$', text.strip()):
+                    menu_items.append(text.strip())
+            
+            # 메뉴 항목들을 줄바꿈으로 구분하여 반환
+            final_text = '\n'.join(menu_items)
+            logger.info(f"추출된 메뉴 항목들: {final_text}")
             
             return final_text
             
         except Exception as e:
             logger.error(f"OCR 처리 중 오류 발생: {str(e)}")
-            raise Exception(f"OCR 처리 중 오류 발생: {str(e)}") 
+            raise Exception(f"OCR 처리 중 오류 발생: {str(e)}")

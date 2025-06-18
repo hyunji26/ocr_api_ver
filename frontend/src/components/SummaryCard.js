@@ -7,9 +7,9 @@ export default function SummaryCard() {
   const consumed = 0;
   const burned = 0;
   const nutrients = [
-    { label: '지방', value: 0 },
-    { label: '단백질', value: 0 },
     { label: '탄수화물', value: 0 },
+    { label: '단백질', value: 0 },
+    { label: '지방', value: 0 },
     { label: '섬유질', value: 0 },
   ];
 
@@ -20,7 +20,7 @@ export default function SummaryCard() {
           <div className={styles.kcalCircle}>
             <span className={styles.kcalValue}>{remainKcal}</span>
             <span className={styles.kcalUnit}>kcal</span>
-            <span className={styles.kcalLabel}>남음</span>
+            {/* <span className={styles.kcalLabel}>남음음</span> */}
           </div>
         </div>
         <div className={styles.summaryProfile}>
@@ -28,14 +28,6 @@ export default function SummaryCard() {
         </div>
       </div>
       <div className={styles.summaryStats}>
-        <div>
-          <span className={styles.statLabel}>소비됨</span>
-          <span className={styles.statValue}>{consumed}</span>
-        </div>
-        <div>
-          <span className={styles.statLabel}>소모됨</span>
-          <span className={styles.statValue}>{burned}</span>
-        </div>
       </div>
       <div className={styles.nutrientBar}>
         {nutrients.map(n => (

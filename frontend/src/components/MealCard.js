@@ -6,6 +6,14 @@ const MealCard = ({ food }) => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
 
+  // 식사 시간대별 이모지 매핑
+  const mealEmoji = {
+    아침: '☀️',
+    점심: '⛅',
+    저녁: '🌃',
+    간식: '🌭'
+  };
+
   const handleCapture = async (file) => {
     try {
       setLoading(true);
@@ -72,11 +80,9 @@ const MealCard = ({ food }) => {
   
   return (
     <div className={styles.mealCard}>
-      <img 
-        src={`/icons/${name}.png`} 
-        alt={name} 
-        className={styles.foodIcon}
-      />
+      <div className={styles.mealEmoji}>
+        {mealEmoji[name]}
+      </div>
       <div className={styles.foodInfo}>
         <div>
           <h3 className={styles.foodName}>{name}</h3>

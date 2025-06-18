@@ -1,107 +1,36 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import styles from '../styles/MealCard.module.css';
 
-const MealCard = ({ food }) => {
-  const { name, calories } = food;
-  const [loading, setLoading] = useState(false);
-  const fileInputRef = useRef(null);
+const MealCard = ({ title, targetKcal }) => {
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 식사 시간대별 이모지 매핑
-  const mealEmoji = {
-    아침: '☀️',
-    점심: '⛅',
-    저녁: '🌃',
-    간식: '🌭'
+  const handleImageCapture = () => {
+    setIsLoading(true);
+    // 이미지 캡처 로직
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
   };
 
-  const handleCapture = async (file) => {
-    try {
-      setLoading(true);
-      console.log('파일 선택됨:', file.name);
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      console.log('API 호출 시작...');
-      const response = await fetch('http://localhost:8000/api/v1/food/analyze', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
-        body: formData,
-      });
-
-      const data = await response.json();
-      console.log('API 응답 결과:', data);
-      
-      // 세부 정보 로깅
-      if (data.text) {
-        console.log('추출된 텍스트:', data.text);
-      }
-      if (data.calories) {
-        console.log('칼로리:', data.calories);
-      }
-      if (data.nutrients) {
-        console.log('영양소 정보:', data.nutrients);
-      }
-      if (data.error) {
-        console.error('에러 발생:', data.error);
-      }
-
-    } catch (error) {
-      console.error('API 호출 중 에러 발생:', error);
-      alert('이미지 분석 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileSelect = (event) => {
-    console.log('파일 선택 이벤트 발생');
-    const file = event.target.files[0];
-    if (file) {
-      console.log('선택된 파일 정보:', {
-        이름: file.name,
-        크기: file.size + ' bytes',
-        타입: file.type
-      });
-      handleCapture(file);
-    } else {
-      console.log('파일이 선택되지 않음');
-    }
-  };
-
-  const openCamera = () => {
-    console.log('=== 디버깅 시작 ===');
-    console.log('버튼 클릭됨');
-    console.log('fileInputRef:', fileInputRef.current);
-    fileInputRef.current.click();
-  };
-  
   return (
-    <div className={styles.mealCard}>
-      <div className={styles.mealEmoji}>
-        {mealEmoji[name]}
-      </div>
-      <div className={styles.foodInfo}>
-        <div>
-          <h3 className={styles.foodName}>{name}</h3>
-          <p className={styles.calories}>0 / {calories} kcal</p>
+    <div className={styles.mealCardContainer}>
+      <div className={styles.mealCard}>
+        <div className={styles.mealInfo}>
+          <h2 className={styles.title}>{title}</h2>
+          <p className={styles.subtitle}>오늘의 식사를 기록해보세요</p>
+          <div className={styles.calorieInfo}>
+            <span className={styles.currentCalories}>0</span>
+            <span className={styles.separator}>/</span>
+            <span className={styles.targetCalories}>{targetKcal}</span>
+            <span className={styles.unit}>kcal</span>
+          </div>
         </div>
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleFileSelect}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-        />
         <button 
-          className={styles.addButton}
-          onClick={openCamera}
-          disabled={loading}
+          className={styles.captureButton}
+          onClick={handleImageCapture}
+          disabled={isLoading}
         >
-          {loading ? '...' : '+'}
+          {isLoading ? '...' : '+'}
         </button>
       </div>
     </div>

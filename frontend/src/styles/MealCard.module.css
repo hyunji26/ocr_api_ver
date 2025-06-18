@@ -1,11 +1,99 @@
 .mealCard {
+  background: linear-gradient(120deg, #34D399 0%, #10B981 100%);
+  border-radius: 16px;
+  padding: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: white;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 15px rgba(52, 211, 153, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.mealCard::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    rgba(255,255,255,0.1) 0%,
+    transparent 50%
+  );
+  transform: rotate(-12deg);
+  pointer-events: none;
+}
+
+.mealCard::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(120deg, 
+    rgba(255,255,255,0) 20%, 
+    rgba(255,255,255,0.05) 40%,
+    rgba(255,255,255,0) 60%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 8s infinite;
+}
+
+.mealCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 211, 153, 0.2);
+}
+
+.mealInfo {
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.subtitle {
+  margin: 5px 0 0 0;
+  font-size: 14px;
+  opacity: 0.9;
+  letter-spacing: 1px;
+  font-weight: 300;
+}
+
+.playInfo {
   display: flex;
   align-items: center;
-  padding: 15px;
-  background-color: #FFF0F0;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  box-shadow: 0 2px 4px rgba(255, 192, 203, 0.15);
+  gap: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.playCount {
+  font-size: 14px;
+  opacity: 0.9;
+  letter-spacing: 1px;
+  font-weight: 300;
+}
+
+.playButton {
+  font-size: 20px;
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
+}
+
+.playButton:hover {
+  opacity: 1;
 }
 
 .mealEmoji {
@@ -107,4 +195,16 @@
   text-align: center;
   padding: 20px;
   color: #666;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  20% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 } 

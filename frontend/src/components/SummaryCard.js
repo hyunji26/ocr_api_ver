@@ -1,43 +1,36 @@
 import React from 'react';
-import styles from '../styles/MainPage.module.css';
+import styles from '../styles/SummaryCard.module.css';
 
-export default function SummaryCard() {
-  // 더미 데이터
-  const remainKcal = 0;
-  const consumed = 0;
-  const burned = 0;
-  const nutrients = [
-    { label: '탄수화물', value: 0 },
-    { label: '단백질', value: 0 },
-    { label: '지방', value: 0 },
-    { label: '섬유질', value: 0 },
+const SummaryCard = () => {
+  const stats = [
+    { label: '지방', value: '0' },
+    { label: '단백질', value: '0' },
+    { label: '탄수화물', value: '0' },
+    { label: '섭취량', value: '0' },
   ];
 
   return (
-    <section className={styles.summaryCard}>
-      <div className={styles.summaryTop}>
-        <div className={styles.summaryRemain}>
+    <div className={styles.summaryWrapper}>
+      <div className={styles.topBackground}></div>
+      <div className={styles.summaryCard}>
+        <div className={styles.header}>
           <div className={styles.kcalCircle}>
-            <span className={styles.kcalValue}>{remainKcal}</span>
-            <span className={styles.kcalUnit}>kcal</span>
-            {/* <span className={styles.kcalLabel}>남음음</span> */}
+            <span className={styles.kcalValue}>0</span>
+            <span className={styles.kcalLabel}>kcal 남음</span>
+          </div>
+          <div className={styles.statsGrid}>
+            {stats.map((stat, index) => (
+              <div key={index} className={styles.statItem}>
+                <span className={styles.statValue}>{stat.value}</span>
+                <span className={styles.statLabel}>{stat.label}</span>
+              </div>
+            ))}
           </div>
         </div>
-        <div className={styles.summaryProfile}>
-          <div className={styles.profileCircle} />
-        </div>
       </div>
-      <div className={styles.summaryStats}>
-      </div>
-      <div className={styles.nutrientBar}>
-        {nutrients.map(n => (
-          <div key={n.label} className={styles.nutrientItem}>
-            <span className={styles.nutrientLabel}>{n.label}</span>
-            <span className={styles.nutrientValue}>{n.value}</span>
-          </div>
-        ))}
-      </div>
-    </section>
+    </div>
   );
-}
+};
+
+export default SummaryCard;
 

@@ -1,7 +1,7 @@
 .mealCard {
   background: linear-gradient(120deg, #34D399 0%, #10B981 100%);
   border-radius: 16px;
-  padding: 25px;
+  padding: 25px 80px 25px 25px; /* 오른쪽에 버튼 공간 확보 */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -127,19 +127,25 @@
 }
 
 .addButton {
-  width: 30px;
-  height: 30px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   border: none;
   background-color: #FFCACA;
   color: white;
-  font-size: 1.2rem;
+  font-size: 2rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s;
+  position: absolute;
+  top: 50%;
+  right: 25px; /* 또는 center로 배치하고 싶으면 left도 조정 */
+  transform: translateY(-50%);
+  z-index: 2;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
+
 
 .addButton:hover {
   background-color: #FFB5B5;
@@ -207,4 +213,80 @@
   100% {
     transform: translateX(100%);
   }
+}
+
+.captureButton {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+  position: absolute;
+  right: 15px;
+  top: 15px;
+}
+
+.captureButton:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.captureButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fabButton {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #34D399;
+  border: none;
+  position: absolute;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(52, 211, 153, 0.3);
+  transition: all 0.3s ease;
+}
+
+.fabButton:hover {
+  transform: scale(1.05);
+  background: #3DDC9F;
+  box-shadow: 0 4px 15px rgba(52, 211, 153, 0.4);
+}
+
+.fabButton:disabled {
+  background: #A7E9D1;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.fabIcon {
+  font-size: 24px;
+  color: white;
+  line-height: 1;
+}
+
+.loadingSpinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 } 

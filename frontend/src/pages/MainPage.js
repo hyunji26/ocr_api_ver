@@ -7,6 +7,24 @@ import BottomNav from '../components/BottomNav';
 
 const MainPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const meals = [
+    {
+      name: "아침",
+      calories: 486,
+      current: 0
+    },
+    {
+      name: "점심",
+      calories: 486,
+      current: 0
+    },
+    {
+      name: "저녁",
+      calories: 486,
+      current: 0
+    }
+  ];
 
   return (
     <div className={styles.mainPage}>
@@ -29,9 +47,9 @@ const MainPage = () => {
       <div className={styles.content}>
         <SummaryCard />
         <div className={styles.mealList}>
-          <MealCard title="아침" targetKcal={486} />
-          <MealCard title="점심" targetKcal={486} />
-          <MealCard title="저녁" targetKcal={486} />
+          {meals.map((meal, index) => (
+            <MealCard key={meal.name} food={meal} />
+          ))}
         </div>
       </div>
     </div>

@@ -1,52 +1,54 @@
+import os
 import re
 import logging
-import pandas as pd
-import os
-from typing import Dict, List, Optional
-from difflib import SequenceMatcher
+import aiohttp
+from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
 class NutritionService:
     def __init__(self):
         logger.info("영양 정보 서비스 초기화")
-        self.nutrition_data = None
-        self.MIN_SIMILARITY = 0.6  # 최소 유사도 threshold
-        self.load_nutrition_data()
+        self.api_key = os.getenv('DikYPQYEtB2A%2BwML43XYgXpRPMp06zngL5Yq5P8VlVfFKY9g46988MjMoeyrex0s876GbTbBGWDZzJQPT5aCEg%3D%3D', '')
+        self.base_url = "http://openapi.foodsafetykorea.go.kr/api"
+        self.service_id = "I2790"  # 식품영양성분 API 서비스 ID
 
-    def load_nutrition_data(self):
-        """CSV 파일에서 영양 정보를 로드합니다."""
+    async def _search_food(self, food_name: str) -> Optional[Dict]:
+        """식약처 API를 통해 식품 영양정보를 검색합니다."""
         try:
-            csv_path = os.path.join(os.path.dirname(__file__), "data", "nutrition_db.csv")
-            # CSV 파일 읽기 (한글 인코딩 처리)
-            self.nutrition_data = pd.read_csv(csv_path, encoding='utf-8-sig')
+            params = {
+                'keyId': self.api_key,
+                'serviceId': self.service_id,
+                'desc_kor': food_name,
+                'pageNo': '1',
+                'numOfRows': '1',
+                'type': 'json'
+            }
             
-            # 음식 이름 컬럼을 소문자로 변환하여 검색을 용이하게 합니다
-            if '식품명' in self.nutrition_data.columns:
-                self.nutrition_data['식품명_lower'] = self.nutrition_data['식품명'].str.lower()
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{self.base_url}/{self.service_id}/json", params=params) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        # API 응답 확인
+                        result = data.get(self.service_id, {}).get('row', [])
+                        if result:
+                            return result[0]
+                    return None
+                    
         except Exception as e:
-            logger.error(f"CSV 파일 로드 중 오류 발생: {str(e)}")
-            raise e
+            logger.error(f"식약처 API 호출 중 오류 발생: {str(e)}")
+            return None
 
-    def calculate_similarity(self, str1: str, str2: str) -> float:
-        """두 문자열 간의 유사도를 계산합니다."""
-        return SequenceMatcher(None, str1.lower(), str2.lower()).ratio()
-
-    def find_most_similar_food(self, food_name: str) -> Optional[str]:
-        """가장 유사한 음식 이름을 찾습니다."""
-        best_similarity = 0
-        best_match = None
-
-        for db_food in self.nutrition_data['식품명'].values:
-            similarity = self.calculate_similarity(food_name, db_food)
-            if similarity > best_similarity and similarity >= self.MIN_SIMILARITY:
-                best_similarity = similarity
-                best_match = db_food
-
-        if best_match:
-            logger.info(f"'{food_name}'와(과) 가장 유사한 음식: '{best_match}' (유사도: {best_similarity:.2f})")
-        
-        return best_match
+    def _clean_food_name(self, food_name: str) -> str:
+        """검색을 위해 음식 이름을 정제합니다."""
+        # 특수문자 및 공백 처리
+        cleaned = re.sub(r'[^\w\s가-힣]', ' ', food_name)
+        # 불필요한 수식어 제거
+        modifiers = ['매운', '매움', '특제', '프리미엄', '마약', '특별']
+        for modifier in modifiers:
+            cleaned = cleaned.replace(modifier, '')
+        return cleaned.strip()
 
     async def extract_nutrition_info(self, food_name: str, confidence: float = 1.0) -> Dict:
         """
@@ -60,34 +62,31 @@ class NutritionService:
             Dict: 영양 정보 (칼로리, 탄수화물, 단백질, 지방)
         """
         try:
-            # 검색을 위해 소문자로 변환
-            food_name_lower = food_name.lower()
+            # 음식 이름 정제
+            cleaned_name = self._clean_food_name(food_name)
+            logger.info(f"정제된 음식 이름: {cleaned_name} (원본: {food_name})")
             
-            # 정확한 일치 검색
-            result = self.nutrition_data[self.nutrition_data['식품명_lower'] == food_name_lower]
+            # 식약처 API로 검색
+            result = await self._search_food(cleaned_name)
             
-            # 정확한 일치가 없는 경우, 유사도 검사
-            if result.empty:
-                similar_food = self.find_most_similar_food(food_name)
-                if similar_food:
-                    result = self.nutrition_data[self.nutrition_data['식품명'] == similar_food]
+            if not result:
+                # 정제된 이름으로 검색 실패시 원본 이름으로 재시도
+                result = await self._search_food(food_name)
             
-            if result.empty:
-                logger.info(f"'{food_name}'에 대한 영양 정보를 찾을 수 없음")
-                return self.get_empty_nutrition()
-            
-            # 첫 번째 결과 반환
-            first_result = result.iloc[0]
-            nutrition_info = {
-                "calories": str(first_result['에너지(kcal)']),
-                "nutrients": {
-                    "carbohydrates": str(first_result['탄수화물(g)']),
-                    "protein": str(first_result['단백질(g)']),
-                    "fat": str(first_result['지방(g)'])
+            if result:
+                nutrition_info = {
+                    "calories": str(result.get('NUTR_CONT1', 'N/A')),  # 열량
+                    "nutrients": {
+                        "carbohydrates": str(result.get('NUTR_CONT2', 'N/A')),  # 탄수화물
+                        "protein": str(result.get('NUTR_CONT3', 'N/A')),  # 단백질
+                        "fat": str(result.get('NUTR_CONT4', 'N/A'))  # 지방
+                    }
                 }
-            }
-            logger.info(f"'{food_name}'의 영양 정보 찾음: {nutrition_info}")
-            return nutrition_info
+                logger.info(f"'{food_name}'의 영양 정보 찾음: {nutrition_info}")
+                return nutrition_info
+            
+            logger.warning(f"'{food_name}'에 대한 영양 정보를 찾을 수 없음")
+            return self.get_empty_nutrition()
             
         except Exception as e:
             logger.error(f"영양 정보 추출 중 오류 발생: {str(e)}")

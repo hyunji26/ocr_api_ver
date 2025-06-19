@@ -45,4 +45,7 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("=== 서버 종료됨 ===") 
+    logger.info("=== 서버 종료됨 ===")
+
+# ASGI 애플리케이션을 main으로 export
+main = app 

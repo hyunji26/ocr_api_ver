@@ -21,7 +21,7 @@ class OCRService:
         result = self.reader.readtext(image)
         
         # 결과 텍스트 추출 (신뢰도 50% 이상)
-        texts = [text for _, text, conf in result if conf > 0.5]
+        texts = [text for _, text, conf in result if float(conf) > 0.5]
         full_text = " ".join(texts)
         
         # 음식 관련 정보 필터링 (메뉴명, 칼로리 등)

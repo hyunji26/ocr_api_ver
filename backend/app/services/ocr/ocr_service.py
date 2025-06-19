@@ -1,13 +1,14 @@
 import easyocr
 import logging
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import io
 import re
+import cv2
 from difflib import SequenceMatcher, get_close_matches
 import hgtk  # 한글 자모 분리/결합 라이브러리
 from app.services.nutrition.data.menu_dict_generator import get_menu_dict
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,24 @@ class OCRService:
             "비방": "비빔",  # 비빔밥 오류 처리
             "공": "콤",      # 매콤한 -> 매공한 오류 처리
             "른": "큰",      # 얼큰한 -> 얼른한 오류 처리
+            "치키가라아게": "치킨가라아게",  # 치킨가라아게 오류 처리
+            # 한글 자모 혼동 오류 추가
+            "회": "회",      # 육회 -> 육회 (받침 오류)
+            "번": "빔",      # 비빔밥 -> 비번밥 오류
+            "덩": "덮",      # 덮밥 -> 덩밥 오류
+            "멩": "면",      # 라면 -> 라멩 오류
+            "이": "이",      # 비빔 -> 비이 오류
+            "방": "빔",      # 비빔 -> 비방 오류
+            "골": "콜",      # 콜라 -> 골라 오류
+            "멩이": "면",    # 라면 -> 라멩이 오류
+            "비방": "비빔",  # 비빔 -> 비방 오류
+            "번밥": "빔밥",  # 비빔밥 -> 비번밥 오류
+            "덩밥": "덮밥",  # 덮밥 -> 덩밥 오류
+            "회비": "회",    # 육회 -> 육회비 오류
+            "비번": "비빔",  # 비빔 -> 비번 오류
+            "면사리": "면사리",  # 라면사리 보존
+            "라면": "라면",  # 라면 보존
+            "사리": "사리",  # 사리 보존
         }
 
         self.modifiers = [
@@ -73,6 +92,26 @@ class OCRService:
 
         
         logger.info("OCR 서비스 초기화 완료")
+
+    def _preprocess_image(self, image: Image.Image) -> Image.Image:
+        """이미지 전처리를 수행합니다 (기본 버전)."""
+        try:
+            # 1. 이미지 크기 조정 (너무 크면 조정)
+            width, height = image.size
+            if width > 2000 or height > 2000:
+                # 너무 큰 이미지는 축소
+                ratio = min(2000/width, 2000/height)
+                new_width = int(width * ratio)
+                new_height = int(height * ratio)
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                logger.info(f"이미지 크기 조정: {width}x{height} -> {new_width}x{new_height}")
+            
+            logger.info("이미지 전처리 완료 (기본 버전)")
+            return image
+            
+        except Exception as e:
+            logger.warning(f"이미지 전처리 중 오류 발생: {str(e)}")
+            return image
 
     def _decompose_hangul(self, text):
         """한글 문자를 자모 단위로 분리"""
@@ -160,19 +199,41 @@ class OCRService:
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
 
-    def _exact_match_exists(self, text: str) -> str:
+    def _exact_match_exists(self, text: str) -> Optional[str]:
         """메뉴 목록에서 정확히 일치하는 메뉴 찾기"""
         if text in self.menu_set:
             return text
         return None
 
-    def _contains_menu(self, text: str) -> str:
+    def _contains_menu(self, text: str) -> Optional[str]:
         """텍스트에 포함된 메뉴 찾기"""
         # 가장 긴 메뉴부터 확인 (예: "김치찌개" vs "찌개")
         sorted_menus = sorted(self.menu_set, key=len, reverse=True)
+        
+        # 1. 정확한 포함 관계 확인
         for menu in sorted_menus:
             if menu in text:
                 return menu
+        
+        # 2. 수식어 제거 후 포함 관계 확인
+        # 수식어 목록
+        modifiers = ["수제", "마약", "특제", "프리미엄", "신메뉴", "NEW", "베스트", "인기", "추천"]
+        
+        for modifier in modifiers:
+            if modifier in text:
+                # 수식어 제거 후 메뉴 찾기
+                clean_text = text.replace(modifier, "").strip()
+                for menu in sorted_menus:
+                    if menu in clean_text or clean_text in menu:
+                        return menu
+        
+        # 3. 공백 제거 후 포함 관계 확인
+        clean_text = text.replace(" ", "")
+        for menu in sorted_menus:
+            clean_menu = menu.replace(" ", "")
+            if clean_menu in clean_text or clean_text in clean_menu:
+                return menu
+                
         return None
 
     def _calculate_levenshtein_distance(self, s1: str, s2: str) -> int:
@@ -199,6 +260,54 @@ class OCRService:
                     )
                     
         return dp[len(s1)][len(s2)]
+
+    def _calculate_hangul_similarity(self, text1: str, text2: str) -> float:
+        """한글 자모 기반 유사도 계산"""
+        try:
+            # 한글 자모 분리
+            decomposed1 = self._decompose_hangul(text1)
+            decomposed2 = self._decompose_hangul(text2)
+            
+            # 자모 단위로 유사도 계산
+            if not decomposed1 or not decomposed2:
+                return 0.0
+            
+            # 자모 매칭 계산
+            matches = 0
+            total_chars = max(len(decomposed1), len(decomposed2))
+            
+            for i in range(min(len(decomposed1), len(decomposed2))):
+                if decomposed1[i] == decomposed2[i]:
+                    matches += 1
+                # 유사한 자모에 대한 부분 점수
+                elif self._is_similar_jamo(decomposed1[i], decomposed2[i]):
+                    matches += 0.5
+            
+            return matches / total_chars if total_chars > 0 else 0.0
+            
+        except Exception as e:
+            logger.warning(f"한글 자모 유사도 계산 중 오류: {str(e)}")
+            return 0.0
+
+    def _is_similar_jamo(self, jamo1: str, jamo2: str) -> bool:
+        """유사한 자모인지 확인"""
+        similar_groups = [
+            ['ㄱ', 'ㄴ', 'ㄷ', 'ㄹ'],  # 초성 유사 그룹
+            ['ㅁ', 'ㅂ', 'ㅃ', 'ㅅ'],  # 초성 유사 그룹
+            ['ㅇ', 'ㅈ', 'ㅉ', 'ㅊ'],  # 초성 유사 그룹
+            ['ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'],  # 초성 유사 그룹
+            ['ㅏ', 'ㅑ', 'ㅓ', 'ㅕ'],  # 중성 유사 그룹
+            ['ㅗ', 'ㅛ', 'ㅜ', 'ㅠ'],  # 중성 유사 그룹
+            ['ㅡ', 'ㅣ', 'ㅐ', 'ㅒ'],  # 중성 유사 그룹
+            ['ㅔ', 'ㅖ', 'ㅘ', 'ㅙ'],  # 중성 유사 그룹
+            ['ㅚ', 'ㅝ', 'ㅞ', 'ㅟ'],  # 중성 유사 그룹
+            ['ㅢ', 'ㅚ', 'ㅟ', 'ㅡ'],  # 중성 유사 그룹
+        ]
+        
+        for group in similar_groups:
+            if jamo1 in group and jamo2 in group:
+                return True
+        return False
 
     def normalize_menu(self, text: str) -> str:
         """메뉴 이름을 정규화"""
@@ -227,7 +336,7 @@ class OCRService:
         
         return text
 
-    def extract_menu_from_text(self, text: str) -> str:
+    def extract_menu_from_text(self, text: str) -> Optional[str]:
         """텍스트에서 메뉴 이름 추출"""
         try:
             # 텍스트 전처리
@@ -271,13 +380,13 @@ class OCRService:
         
         return candidates
 
-    def extract_menu_from_text_with_similarity(self, text: str) -> Tuple[str, float]:
+    def extract_menu_from_text_with_similarity(self, text: str) -> Optional[Tuple[str, float]]:
         """텍스트에서 메뉴 이름과 유사도를 함께 추출"""
         try:
             # 텍스트 전처리
             text = text.strip()
             if not text:
-                return None, 0.0
+                return None
 
             # 영문 메뉴를 한글로 변환
             if text.upper() in self.eng_to_kor:
@@ -286,7 +395,7 @@ class OCRService:
             # 1단계: 기본 정규화
             normalized_text = self._normalize_text(text)
             if not normalized_text:
-                return None, 0.0
+                return None
             
             # 2단계: 수식어 제거
             clean_text = self._remove_modifiers(normalized_text)
@@ -343,11 +452,11 @@ class OCRService:
                 logger.info(f"원본 텍스트: {text} -> 정제된 텍스트: {best_match} (레벤슈타인 거리: {min_distance}, 유사도: {similarity:.2f})")
                 return best_match, similarity
 
-            return None, 0.0
+            return None
 
         except Exception as e:
             logger.error(f"메뉴 추출 중 오류 발생: {str(e)}")
-            return None, 0.0
+            return None
 
     async def extract_text(self, image_bytes: bytes) -> List[dict]:
         try:
@@ -356,14 +465,11 @@ class OCRService:
             # 바이트 데이터를 PIL Image로 변환
             image = Image.open(io.BytesIO(image_bytes))
             
-            # PIL Image를 numpy array로 변환
+            # 원본 이미지로 OCR 시도
             image_np = np.array(image)
-            logger.info("이미지를 numpy array로 변환 완료")
-            
-            # OCR 실행
-            logger.info("OCR 텍스트 추출 시작")
+            logger.info("원본 이미지로 OCR 시도")
             results = self.reader.readtext(image_np)
-            logger.info(f"OCR 결과 수: {len(results)}")
+            logger.info(f"원본 이미지 OCR 결과 수: {len(results)}")
             
             # 결과가 없는 경우
             if not results:
@@ -389,7 +495,7 @@ class OCRService:
                     extracted_results.append({
                         "original_text": text.strip(),
                         "text": normalized_text,
-                        "confidence": round(confidence, 2)
+                        "confidence": round(float(confidence), 2)
                     })
             
             # 결과 반환 전에 모든 추출된 텍스트를 로그에 출력
@@ -405,18 +511,18 @@ class OCRService:
     def process_image(self, image_data: bytes) -> List[str]:
         """이미지에서 메뉴 텍스트 추출"""
         try:
-            # 이미지를 numpy array로 변환
+            # 이미지를 PIL Image로 변환
             image = Image.open(io.BytesIO(image_data))
-            image_np = np.array(image)
-            logger.info("이미지를 numpy array로 변환 완료")
             
-            # OCR 텍스트 추출
-            logger.info("OCR 텍스트 추출 시작")
+            # 원본 이미지로 OCR 시도
+            image_np = np.array(image)
+            logger.info("원본 이미지로 OCR 시도")
             results = self.reader.readtext(image_np)
+            logger.info(f"원본 이미지 OCR 결과 수: {len(results)}")
             
             # 추출된 텍스트 목록
             extracted_texts = [result[1] for result in results]
-            logger.info(f"OCR 결과 수: {len(extracted_texts)}")
+            logger.info(f"최종 OCR 결과 수: {len(extracted_texts)}")
             
             # 메뉴 추출 및 중복 제거
             menus = []

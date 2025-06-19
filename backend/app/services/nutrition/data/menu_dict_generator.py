@@ -36,6 +36,11 @@ class MenuDictGenerator:
             menu_set = set(df['식품명'].dropna().unique())
             logger.info(f"[DEBUG] 메뉴 이름 추출 완료: {len(menu_set)}개")
             
+            # 기본 메뉴명 추가
+            basic_menus = self._extract_basic_menus(menu_set)
+            menu_set.update(basic_menus)
+            logger.info(f"[DEBUG] 기본 메뉴명 추가 완료: {len(menu_set)}개")
+            
             return menu_set
             
         except Exception as e:
@@ -46,8 +51,29 @@ class MenuDictGenerator:
                 "김치찌개",
                 "된장찌개",
                 "갈비탕",
-                "만두국"
+                "만두국",
+                "돈까스",
+                "치킨가라아게",
+                "소세지"
             }
+    
+    def _extract_basic_menus(self, menu_set: Set[str]) -> Set[str]:
+        """복합 메뉴명에서 기본 메뉴명을 추출"""
+        basic_menus = set()
+        
+        # 기본 메뉴명 패턴
+        basic_patterns = [
+            "돈까스", "치킨가라아게", "소세지", "피자", "햄버거", "샌드위치",
+            "김치찌개", "된장찌개", "갈비탕", "만두국", "비빔밥", "불고기",
+            "닭볶음탕", "해물탕", "감자튀김", "치킨", "스테이크", "파스타"
+        ]
+        
+        for menu in menu_set:
+            for pattern in basic_patterns:
+                if pattern in menu:
+                    basic_menus.add(pattern)
+        
+        return basic_menus
 
 # 전역 인스턴스 생성
 menu_dict_generator = MenuDictGenerator()

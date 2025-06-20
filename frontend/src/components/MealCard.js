@@ -17,7 +17,7 @@ const MealCard = ({ food }) => {
       formData.append('file', file);
 
       console.log('API 호출 시작...');
-      const response = await fetch('http://localhost:8080/api/v1/food/analyze', {
+      const response = await fetch('http://localhost:8000/api/v1/food/analyze', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

@@ -46,11 +46,6 @@ const OcrResultPage = () => {
                 <div className={styles.foodInfo}>
                   <h3 className={styles.foodName}>
                     {item.name || '알 수 없음'}
-                    {item.confidence && (
-                      <span className={styles.confidence}>
-                        {(item.confidence * 100).toFixed(0)}% 일치
-                      </span>
-                    )}
                   </h3>
                   <div className={styles.nutritionInfo}>
                     <span className={styles.calories}>

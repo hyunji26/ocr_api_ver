@@ -21,15 +21,15 @@ class OCRService:
         # 메뉴 목록 초기화
         self.menu_set = get_menu_dict('app/services/nutrition/data/nutrition_db.csv')
         
-        # 영문 메뉴 매핑
-        self.eng_to_kor = {
-            "MANDUGUK": "만두국",
-            "GALBITUNG": "갈비탕",
-            "BIBIMBAP": "비빔밥",
-            "KIMCHIJJIGAE": "김치찌개",
-            "DOENJANGJJIGAE": "된장찌개",
-            "BUDAEJJIGAE": "부대찌개"
-        }
+        # # 영문 메뉴 매핑
+        # self.eng_to_kor = {
+        #     "MANDUGUK": "만두국",
+        #     "GALBITUNG": "갈비탕",
+        #     "BIBIMBAP": "비빔밥",
+        #     "KIMCHIJJIGAE": "김치찌개",
+        #     "DOENJANGJJIGAE": "된장찌개",
+        #     "BUDAEJJIGAE": "부대찌개"
+        # }
 
         # 자주 발생하는 OCR 오류 수정
         self.common_ocr_errors = {
@@ -129,21 +129,21 @@ class OCRService:
             logger.warning(f"한글 자모 결합 중 오류 발생: {str(e)}")
             return ''.join(decomposed)
 
-    def _convert_eng_to_kor(self, text):
-        """영문 메뉴를 한글로 변환"""
-        # 대문자로 변환하고 공백 제거
-        text_upper = ''.join(text.upper().split())
+    # def _convert_eng_to_kor(self, text):
+    #     """영문 메뉴를 한글로 변환"""
+    #     # 대문자로 변환하고 공백 제거
+    #     text_upper = ''.join(text.upper().split())
         
-        # 영문 메뉴 매핑에서 찾기
-        if text_upper in self.eng_to_kor:
-            return self.eng_to_kor[text_upper]
+    #     # 영문 메뉴 매핑에서 찾기
+    #     if text_upper in self.eng_to_kor:
+    #         return self.eng_to_kor[text_upper]
             
-        # 부분 매칭 시도
-        for eng, kor in self.eng_to_kor.items():
-            if text_upper in eng or eng in text_upper:
-                return kor
+    #     # 부분 매칭 시도
+    #     for eng, kor in self.eng_to_kor.items():
+    #         if text_upper in eng or eng in text_upper:
+    #             return kor
                 
-        return text
+    #     return text
 
     def _find_best_menu_match(self, text):
         """메뉴 사전에서 가장 유사한 메뉴 찾기 (set 기반)"""
@@ -199,42 +199,42 @@ class OCRService:
         text = re.sub(r'\s+', ' ', text)
         return text.strip()
 
-    def _exact_match_exists(self, text: str) -> Optional[str]:
-        """메뉴 목록에서 정확히 일치하는 메뉴 찾기"""
-        if text in self.menu_set:
-            return text
-        return None
+    # def _exact_match_exists(self, text: str) -> Optional[str]:
+    #     """메뉴 목록에서 정확히 일치하는 메뉴 찾기"""
+    #     if text in self.menu_set:
+    #         return text
+    #     return None
 
-    def _contains_menu(self, text: str) -> Optional[str]:
-        """텍스트에 포함된 메뉴 찾기"""
-        # 가장 긴 메뉴부터 확인 (예: "김치찌개" vs "찌개")
-        sorted_menus = sorted(self.menu_set, key=len, reverse=True)
+    # def _contains_menu(self, text: str) -> Optional[str]:
+    #     """텍스트에 포함된 메뉴 찾기"""
+    #     # 가장 긴 메뉴부터 확인 (예: "김치찌개" vs "찌개")
+    #     sorted_menus = sorted(self.menu_set, key=len, reverse=True)
         
-        # 1. 정확한 포함 관계 확인
-        for menu in sorted_menus:
-            if menu in text:
-                return menu
+    #     # 1. 정확한 포함 관계 확인
+    #     for menu in sorted_menus:
+    #         if menu in text:
+    #             return menu
         
-        # 2. 수식어 제거 후 포함 관계 확인
-        # 수식어 목록
-        modifiers = ["수제", "마약", "특제", "프리미엄", "신메뉴", "NEW", "베스트", "인기", "추천"]
+    #     # 2. 수식어 제거 후 포함 관계 확인
+    #     # 수식어 목록
+    #     modifiers = ["수제", "마약", "특제", "프리미엄", "신메뉴", "NEW", "베스트", "인기", "추천"]
         
-        for modifier in modifiers:
-            if modifier in text:
-                # 수식어 제거 후 메뉴 찾기
-                clean_text = text.replace(modifier, "").strip()
-                for menu in sorted_menus:
-                    if menu in clean_text or clean_text in menu:
-                        return menu
+    #     for modifier in modifiers:
+    #         if modifier in text:
+    #             # 수식어 제거 후 메뉴 찾기
+    #             clean_text = text.replace(modifier, "").strip()
+    #             for menu in sorted_menus:
+    #                 if menu in clean_text or clean_text in menu:
+    #                     return menu
         
-        # 3. 공백 제거 후 포함 관계 확인
-        clean_text = text.replace(" ", "")
-        for menu in sorted_menus:
-            clean_menu = menu.replace(" ", "")
-            if clean_menu in clean_text or clean_text in clean_menu:
-                return menu
+    #     # 3. 공백 제거 후 포함 관계 확인
+    #     clean_text = text.replace(" ", "")
+    #     for menu in sorted_menus:
+    #         clean_menu = menu.replace(" ", "")
+    #         if clean_menu in clean_text or clean_text in clean_menu:
+    #             return menu
                 
-        return None
+    #     return None
 
     def _calculate_levenshtein_distance(self, s1: str, s2: str) -> int:
         """레벤슈타인 거리 계산 (Java 코드 참고)"""
@@ -311,9 +311,9 @@ class OCRService:
 
     def normalize_menu(self, text: str) -> str:
         """메뉴 이름을 정규화"""
-        # 영문 메뉴를 한글로 변환
-        if text.upper() in self.eng_to_kor:
-            text = self.eng_to_kor[text.upper()]
+        # # 영문 메뉴를 한글로 변환
+        # if text.upper() in self.eng_to_kor:
+        #     text = self.eng_to_kor[text.upper()]
         
         # OCR 오류 수정
         for error, correction in self.common_ocr_errors.items():
@@ -343,10 +343,6 @@ class OCRService:
             text = text.strip()
             if not text:
                 return None
-
-            # 영문 메뉴를 한글로 변환
-            if text.upper() in self.eng_to_kor:
-                return self.eng_to_kor[text.upper()]
 
             # 한글 자모 분리
             text_decomposed = self._decompose_hangul(text)
@@ -402,17 +398,17 @@ class OCRService:
             if not clean_text:
                 clean_text = normalized_text
 
-            # 3단계: 정확한 매칭 시도
-            exact_match = self._exact_match_exists(clean_text)
-            if exact_match:
-                logger.info(f"원본 텍스트: {text} -> 정제된 텍스트: {exact_match} (정확히 일치)")
-                return exact_match, 1.0
+            # # 3단계: 정확한 매칭 시도
+            # exact_match = self._exact_match_exists(clean_text)
+            # if exact_match:
+            #     logger.info(f"원본 텍스트: {text} -> 정제된 텍스트: {exact_match} (정확히 일치)")
+            #     return exact_match, 1.0
 
-            # 4단계: 포함된 메뉴 찾기
-            contained_menu = self._contains_menu(clean_text)
-            if contained_menu:
-                logger.info(f"원본 텍스트: {text} -> 정제된 텍스트: {contained_menu} (부분 일치)")
-                return contained_menu, 0.9
+            # # 4단계: 포함된 메뉴 찾기
+            # contained_menu = self._contains_menu(clean_text)
+            # if contained_menu:
+            #     logger.info(f"원본 텍스트: {text} -> 정제된 텍스트: {contained_menu} (부분 일치)")
+            #     return contained_menu, 0.9
 
             # 5단계: 단어 단위로 분리하여 매칭
             words = clean_text.split()
@@ -479,8 +475,8 @@ class OCRService:
             # 모든 텍스트와 신뢰도 추출
             extracted_results = []
             for bbox, text, confidence in results:
-                # 한글, 영문, 숫자, 공백만 포함된 텍스트 허용
-                if re.match(r'^[가-힣a-zA-Z0-9\s]+$', text.strip()):
+                # 한글과 숫자, 공백만 포함된 텍스트 허용 (영어 제외)
+                if re.match(r'^[가-힣0-9\s]+$', text.strip()):
                     # 가격 정보는 제외
                     if re.match(r'^\d+,?\d*원?$', text.strip()):
                         continue
@@ -536,3 +532,57 @@ class OCRService:
         except Exception as e:
             logger.error(f"텍스트 추출 중 오류 발생: {str(e)}")
             return []  # 에러 발생 시 빈 리스트 반환
+
+    def correct_with_levenshtein(self, text: str, cutoff: float = 0.8) -> Optional[str]:
+        """
+        정제된 텍스트가 메뉴와 유사하면 가장 가까운 메뉴로 교체
+        이미 메뉴 사전에 있는 단어나 복합 메뉴는 교정하지 않음
+        
+        Args:
+            text (str): 교정할 텍스트
+            cutoff (float): 유사도 임계값 (0.0 ~ 1.0), 기본값 0.8로 상향 조정
+        """
+        if not text:
+            return None
+        
+        # 텍스트가 너무 짧으면 교정하지 않음 (2글자 미만)
+        if len(text.strip()) < 2:
+            logger.info(f"텍스트가 너무 짧아 교정 제외: {text}")
+            return text
+
+        # 1. 전체 텍스트가 정확히 메뉴 사전에 있는 경우
+        if text in self.menu_set:
+            return text
+
+        # 2. 복합 메뉴 처리 (예: "불고기 덮밥")
+        words = text.split()
+        if len(words) > 1:
+            # 복합 메뉴의 각 부분이 메뉴 사전에 있는지 확인
+            menu_parts = []
+            for word in words:
+                # 각 단어에 대해 유사도 검사 (단어가 2글자 이상인 경우만)
+                if len(word) >= 2:
+                    matches = get_close_matches(word, self.menu_set, n=1, cutoff=cutoff)
+                    if matches:
+                        menu_parts.append(matches[0])
+                    else:
+                        menu_parts.append(word)
+                else:
+                    menu_parts.append(word)
+            
+            corrected = ' '.join(menu_parts)
+            if corrected != text:
+                logger.info(f"부분 교정: {text} → {corrected} (유사도 임계값: {cutoff})")
+            return corrected
+
+        # 3. 단일 단어 메뉴 처리
+        matches = get_close_matches(text, self.menu_set, n=1, cutoff=cutoff)
+        if matches:
+            best_match = matches[0]
+            if best_match != text:
+                # 유사도 계산 및 로깅
+                similarity = SequenceMatcher(None, text, best_match).ratio()
+                logger.info(f"레벤슈타인 교정: {text} → {best_match} (유사도: {similarity:.2f})")
+            return best_match
+        
+        return text

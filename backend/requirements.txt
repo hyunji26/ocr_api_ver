@@ -8,4 +8,8 @@ easyocr==1.7.1
 pillow==10.1.0
 numpy==1.26.2
 opencv-python-headless==4.8.1.78
-aiohttp==3.9.1 
+aiohttp==3.9.1
+sqlalchemy==1.4.23
+pyjwt==2.1.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4 

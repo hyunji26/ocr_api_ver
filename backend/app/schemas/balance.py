@@ -1,7 +1,9 @@
 from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from datetime import datetime
 from enum import Enum
+
+__all__ = ['BalanceCreate', 'Balance', 'DailyBalance', 'MealCreate', 'BalanceResponse', 'UserCreate', 'Token']
 
 class MealType(str, Enum):
     breakfast = "breakfast"
@@ -10,6 +12,7 @@ class MealType(str, Enum):
 
 class MealCreate(BaseModel):
     meal_type: MealType
+    food_name: str
     calories: float
     carbohydrates: float
     protein: float
@@ -36,4 +39,25 @@ class UserCreate(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
-    user_id: int 
+    user_id: int
+
+class BalanceCreate(BaseModel):
+    user_id: int
+    date: datetime
+    calories: float
+    carbohydrates: float
+    protein: float
+    fat: float
+
+class Balance(BalanceCreate):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+class DailyBalance(BaseModel):
+    date: datetime
+    calories: float
+    carbohydrates: float
+    protein: float
+    fat: float 

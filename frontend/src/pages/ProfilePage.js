@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 
-const API_BASE_URL = 'http://192.168.45.153:8000';
+const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호스트 주소 사용
 
 const ProfilePage = () => {
   const navigate = useNavigate();
   const [userStats, setUserStats] = useState({
-    totalMeals: 0,
-    averageBalance: 0,
-    streakDays: 0,
-    goalAchievements: 0
+    weeklyAvgBalance: 0,
+    monthlyAvgCalories: 0,
+    perfectBalanceDays: 0,
+    healthyMealStreak: 0
   });
 
   const [settings, setSettings] = useState({
@@ -31,10 +31,10 @@ const ProfilePage = () => {
         // TODO: 실제 API 연동 시 구현
         // 현재는 더미 데이터 사용
         setUserStats({
-          totalMeals: 42,
-          averageBalance: 85,
-          streakDays: 7,
-          goalAchievements: 12
+          weeklyAvgBalance: 82,
+          monthlyAvgCalories: 2100,
+          perfectBalanceDays: 5,
+          healthyMealStreak: 3
         });
       } catch (error) {
         console.error('Failed to fetch user stats:', error);
@@ -79,26 +79,30 @@ const ProfilePage = () => {
             </div>
             <div className="ml-4">
               <h2 className="text-xl font-bold text-gray-800">건강한 식단러</h2>
-              <p className="text-sm text-gray-600">함께한지 {userStats.streakDays}일째</p>
+              <p className="text-sm text-gray-600">함께한지 {userStats.healthyMealStreak}일째</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white bg-opacity-50 rounded-xl p-4">
-              <div className="text-sm text-gray-600">식단 기록</div>
-              <div className="text-2xl font-bold text-gray-800">{userStats.totalMeals}회</div>
+              <div className="text-sm text-gray-600">주간 평균 밸런스</div>
+              <div className="text-2xl font-bold text-emerald-500">{userStats.weeklyAvgBalance}점</div>
+              <div className="text-xs text-gray-500 mt-1">지난 7일 평균</div>
             </div>
             <div className="bg-white bg-opacity-50 rounded-xl p-4">
-              <div className="text-sm text-gray-600">평균 밸런스</div>
-              <div className="text-2xl font-bold text-emerald-500">{userStats.averageBalance}점</div>
+              <div className="text-sm text-gray-600">월간 평균 칼로리</div>
+              <div className="text-2xl font-bold text-blue-500">{userStats.monthlyAvgCalories}kcal</div>
+              <div className="text-xs text-gray-500 mt-1">이번 달 기준</div>
             </div>
             <div className="bg-white bg-opacity-50 rounded-xl p-4">
-              <div className="text-sm text-gray-600">연속 기록</div>
-              <div className="text-2xl font-bold text-amber-500">{userStats.streakDays}일</div>
+              <div className="text-sm text-gray-600">완벽 밸런스 달성</div>
+              <div className="text-2xl font-bold text-amber-500">{userStats.perfectBalanceDays}일</div>
+              <div className="text-xs text-gray-500 mt-1">밸런스 90점 이상</div>
             </div>
             <div className="bg-white bg-opacity-50 rounded-xl p-4">
-              <div className="text-sm text-gray-600">목표 달성</div>
-              <div className="text-2xl font-bold text-blue-500">{userStats.goalAchievements}회</div>
+              <div className="text-sm text-gray-600">건강식단 연속</div>
+              <div className="text-2xl font-bold text-purple-500">{userStats.healthyMealStreak}일</div>
+              <div className="text-xs text-gray-500 mt-1">현재 진행중</div>
             </div>
           </div>
         </div>

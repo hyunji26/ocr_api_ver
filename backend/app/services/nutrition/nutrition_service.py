@@ -118,11 +118,11 @@ class NutritionService:
             if result:
                 nutrition_info = {
                     "name": result.get('FOOD_NM_KR', 'N/A'),  # 식품명 추가
-                    "calories": str(result.get('AMT_NUM1', 'N/A')),  # 열량 (kcal)
+                    "calories": float(result.get('AMT_NUM1', 0)),  # 열량 (kcal)
                     "nutrients": {
-                        "carbohydrates": str(result.get('AMT_NUM6', 'N/A')),  # 탄수화물 (g)
-                        "protein": str(result.get('AMT_NUM3', 'N/A')),  # 단백질 (g)
-                        "fat": str(result.get('AMT_NUM4', 'N/A'))  # 지방 (g)
+                        "carbohydrates": float(result.get('AMT_NUM6', 0)),  # 탄수화물 (g)
+                        "protein": float(result.get('AMT_NUM3', 0)),  # 단백질 (g)
+                        "fat": float(result.get('AMT_NUM4', 0))  # 지방 (g)
                     }
                 }
                 logger.info(f"'{food_name}'의 영양 정보 찾음: {nutrition_info}")
@@ -139,10 +139,10 @@ class NutritionService:
         """빈 영양 정보를 반환합니다."""
         return {
             "name": "N/A",  # 식품명 필드 추가
-            "calories": "N/A",
+            "calories": 0,
             "nutrients": {
-                "carbohydrates": "N/A",
-                "protein": "N/A",
-                "fat": "N/A"
+                "carbohydrates": 0,
+                "protein": 0,
+                "fat": 0
             }
-        } 
+        }

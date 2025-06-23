@@ -32,12 +32,15 @@ app.add_middleware(
         "http://127.0.0.1:3000",          # 로컬 개발용 (대체 주소)
         "http://192.168.45.153:3000",     # 개발 서버 IP
         "http://192.168.45.144:3000",     # 클라이언트 IP
+        "http://192.168.45.89:3000",      # 클라이언트 IP
+        "http://192.168.45.153",          # IP만 있는 경우
+        "*"                               # 모든 origin 허용
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # OPTIONS 메서드 명시적 추가
-    allow_headers=["*", "Authorization", "Content-Type"],  # Content-Type 헤더 명시적 추가
-    expose_headers=["*"],  # 클라이언트에 노출할 헤더
-    max_age=3600,  # preflight 요청 캐시 시간 (1시간)
+    allow_methods=["*"],                  # 모든 HTTP 메서드 허용
+    allow_headers=["*"],                  # 모든 헤더 허용
+    expose_headers=["*"],                 # 모든 헤더 노출
+    max_age=3600,                        # preflight 요청 캐시 시간 (1시간)
 )
 
 # API 라우터 등록

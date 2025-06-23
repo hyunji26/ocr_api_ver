@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 // API 기본 URL 설정
-const API_BASE_URL = 'http://192.168.45.153:8000';  // 백엔드 서버 IP로 직접 설정
+const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호스트 주소 사용
 
 console.log('Current hostname:', window.location.hostname);
 console.log('API Base URL:', API_BASE_URL);

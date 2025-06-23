@@ -2,14 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, Cookie
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from jwt import encode, decode  # PyJWT 대신 jwt를 직접 import
 from sqlalchemy import select, func
+import logging
 
 from app.database import get_db
 from app.models.balance import Meal, User
 from app.services.balance.balance_service import BalanceService
-from app.schemas.balance import MealCreate, BalanceResponse, UserCreate, Token
+from app.schemas.balance import MealCreate, BalanceResponse, UserCreate, Token, BalanceCreate, Balance, DailyBalance
+
+# 로거 설정
+logger = logging.getLogger(__name__)
 
 # JWT 설정
 SECRET_KEY = "your-secret-key"  # 실제 운영환경에서는 환경변수로 관리해야 함
@@ -17,7 +21,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24시간으로 변경
 
 router = APIRouter(prefix="/balance", tags=["Balance"])
-balance_service = BalanceService()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/balance/token")
 
 def create_access_token(data: dict):
@@ -48,19 +51,35 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 @router.post("/token")
 async def login_for_access_token(db: Session = Depends(get_db)):
     """간단한 로그인을 위한 임시 엔드포인트"""
-    # 새 사용자 생성
-    user = User(daily_calorie_goal=2000)
-    db.add(user)
     try:
+        logger.info("로그인 시도")
+        # 새 사용자 생성
+        user = User(daily_calorie_goal=2000)
+        db.add(user)
         db.commit()
         db.refresh(user)
+        logger.info(f"새 사용자 생성됨: ID {user.id}")
+        
+        # 토큰 생성
+        access_token = create_access_token(data={"sub": str(user.id)})
+        logger.info("토큰 생성 완료")
+        
+        response_data = {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user_id": user.id,
+            "daily_calorie_goal": user.daily_calorie_goal
+        }
+        logger.info(f"응답 데이터: {response_data}")
+        return response_data
+        
     except Exception as e:
+        logger.error(f"로그인 중 오류 발생: {str(e)}")
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to create user: {str(e)}")
-    
-    # 토큰 생성
-    access_token = create_access_token(data={"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id}
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create user or generate token: {str(e)}"
+        )
 
 @router.post("/register")
 async def register_user(user: UserCreate, db: Session = Depends(get_db)):
@@ -84,6 +103,7 @@ async def get_balance_stats(
 ):
     """인증된 사용자의 영양 밸런스 통계를 조회합니다."""
     try:
+        balance_service = BalanceService(db)
         # 오늘의 식사 기록 조회
         today = datetime.now().date()
         start_of_day = datetime.combine(today, datetime.min.time())
@@ -148,32 +168,34 @@ async def get_meals(
         start_of_day = datetime.combine(today, datetime.min.time())
         end_of_day = datetime.combine(today, datetime.max.time())
 
-        # 데이터베이스에서 직접 각 식사 타입별 칼로리 합계 계산
-        meal_calories_query = (
-            db.query(
-                func.lower(Meal.meal_type).label('meal_type'),
-                func.sum(Meal.calories).label('total_calories')
-            )
-            .filter(
-                Meal.user_id == current_user.id,
-                Meal.timestamp >= start_of_day,
-                Meal.timestamp <= end_of_day
-            )
-            .group_by(func.lower(Meal.meal_type))
-        )
+        # 오늘의 모든 식사 기록 조회
+        meals = db.query(Meal).filter(
+            Meal.user_id == current_user.id,
+            Meal.timestamp >= start_of_day,
+            Meal.timestamp <= end_of_day
+        ).all()
 
-        # 쿼리 결과를 딕셔너리로 변환
-        meal_calories = {
-            'breakfast': 0,
-            'lunch': 0,
-            'dinner': 0
+        # 식사 타입별로 그룹화
+        meal_groups = {
+            'breakfast': [],
+            'lunch': [],
+            'dinner': []
         }
-        
-        for result in meal_calories_query.all():
-            if result.meal_type in meal_calories:
-                meal_calories[result.meal_type] = int(float(result.total_calories or 0))
 
-        return meal_calories
+        for meal in meals:
+            meal_type = meal.meal_type.lower()
+            if meal_type in meal_groups:
+                meal_groups[meal_type].append({
+                    'name': meal.food_name or '식사',
+                    'calories': float(str(meal.calories or 0)),
+                    'nutrients': {
+                        'carbohydrates': float(str(meal.carbohydrates or 0)),
+                        'protein': float(str(meal.protein or 0)),
+                        'fat': float(str(meal.fat or 0))
+                    }
+                })
+
+        return meal_groups
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -189,6 +211,7 @@ async def add_meal(
         new_meal = Meal(
             user_id=current_user.id,
             meal_type=meal.meal_type,
+            food_name=meal.food_name,
             calories=meal.calories,
             carbohydrates=meal.carbohydrates,
             protein=meal.protein,
@@ -206,4 +229,29 @@ async def add_meal(
         return {"message": "Meal added successfully", "meal_id": new_meal.id}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/balance", response_model=Balance)
+def create_balance(balance: BalanceCreate, db: Session = Depends(get_db)):
+    balance_service = BalanceService(db)
+    return balance_service.create_balance(balance)
+
+@router.get("/balance/monthly/{user_id}/{year}/{month}", response_model=dict)
+def get_monthly_balance(user_id: int, year: int, month: int, db: Session = Depends(get_db)):
+    balance_service = BalanceService(db)
+    return balance_service.get_monthly_balance(user_id, year, month)
+
+@router.get("/balance/daily/{user_id}/{year}/{month}/{day}", response_model=dict)
+def get_daily_balance(user_id: int, year: int, month: int, day: int, db: Session = Depends(get_db)):
+    balance_service = BalanceService(db)
+    return balance_service.get_daily_balance(user_id, year, month, day)
+
+@router.get("/balance/stats/{user_id}", response_model=dict)
+def get_user_stats(user_id: int, db: Session = Depends(get_db)):
+    balance_service = BalanceService(db)
+    return balance_service.get_user_stats(user_id)
+
+@router.get("/balance/streak/{user_id}", response_model=dict)
+def get_user_streak(user_id: int, db: Session = Depends(get_db)):
+    balance_service = BalanceService(db)
+    return balance_service.get_user_streak(user_id) 

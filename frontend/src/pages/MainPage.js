@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
 
 // API 기본 URL 설정
-const API_BASE_URL = 'http://192.168.45.153:8000';  // 백엔드 서버 IP로 직접 설정
+const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호스트 주소 사용
 
 console.log('Current hostname:', window.location.hostname);
 console.log('API Base URL:', API_BASE_URL);
@@ -100,13 +100,18 @@ const MainPage = () => {
         const mealCalories = await mealsResponse.json();
         console.log('Meals API Response:', mealCalories);
 
+        // 각 식사 타입별 칼로리 합계 계산
+        const breakfast_calories = mealCalories.breakfast?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
+        const lunch_calories = mealCalories.lunch?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
+        const dinner_calories = mealCalories.dinner?.reduce((sum, meal) => sum + meal.calories, 0) || 0;
+
         setNutritionStats(prev => ({
           ...statsData,
           daily_calorie_goal: 2000,
           meal_calories: {
-            breakfast: mealCalories.breakfast || 0,
-            lunch: mealCalories.lunch || 0,
-            dinner: mealCalories.dinner || 0
+            breakfast: breakfast_calories,
+            lunch: lunch_calories,
+            dinner: dinner_calories
           }
         }));
       } catch (error) {
@@ -121,7 +126,7 @@ const MainPage = () => {
     if (percentage === 0) {
       return "오늘의 첫 식사를 기록해보세요! 🌱";
     }else if (percentage < 70) {
-      return "아직 여유가 있어요! 건강한 식사 하세요🍽️";
+      return "아직 여유가 있어요!🍽️";
     } else if (percentage < 100) {
       return "권장 칼로리에 거의 다달았어요! 👏";
     } else if (percentage === 100) {
@@ -152,7 +157,7 @@ const MainPage = () => {
       console.log('API 응답 결과:', data);
       
       // 결과 페이지로 이동
-      navigate('/result', { state: { results: data, mealType } });
+      navigate('/ocr-result', { state: { results: data, mealType } });
 
     } catch (error) {
       console.error('API 호출 중 에러 발생:', error);

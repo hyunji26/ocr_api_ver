@@ -5,6 +5,8 @@ import MainPage from './pages/MainPage';
 import OcrResultPage from './pages/OcrResultPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
+import MealLogPage from './pages/MealLogPage';
+import CalendarPage from './pages/CalendarPage';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -28,14 +30,37 @@ function App() {
           }
         />
         <Route
-          path="/result"
+          path="/ocr-result"
           element={
             <PrivateRoute>
               <OcrResultPage />
             </PrivateRoute>
           }
         />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfilePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/meal-log"
+          element={
+            <PrivateRoute>
+              <MealLogPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/calendar"
+          element={
+            <PrivateRoute>
+              <CalendarPage />
+            </PrivateRoute>
+          }
+        />
       </Routes>
     </Router>
   );

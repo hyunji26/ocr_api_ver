@@ -16,6 +16,7 @@ const MealLogPage = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [totalCalories, setTotalCalories] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchMealData = async () => {
@@ -172,13 +173,15 @@ const MealLogPage = () => {
           )}
         </div>
 
-        {/* 식사 추가 버튼 */}
-        <button
-          onClick={handleAddMeal}
-          className="fixed bottom-24 right-6 w-14 h-14 bg-emerald-500 rounded-full shadow-lg flex items-center justify-center text-white hover:bg-emerald-600 transition-colors"
-        >
-          <i className="fas fa-plus text-xl"></i>
-        </button>
+        {/* Floating Action Button */}
+        <div className="fixed bottom-24 right-4">
+          <button
+            onClick={() => navigate('/manual-meal')}
+            className="bg-emerald-500 text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-emerald-600 transition-colors"
+          >
+            <i className="fas fa-plus"></i>
+          </button>
+        </div>
 
         {/* 하단 네비게이션 */}
         <BottomNav />

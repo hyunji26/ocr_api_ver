@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, extract, select
 from app.models.balance import Meal, User
 from app.schemas.balance import Balance,BalanceCreate
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -158,8 +159,8 @@ class BalanceService:
             meal_type=balance.meal_type,
             menu=balance.menu,
             calories=balance.calories,
+            carbohydrates=balance.nutrients.get('carbohydrates', 0),
             protein=balance.nutrients.get('protein', 0),
-            carbs=balance.nutrients.get('carbs', 0),
             fat=balance.nutrients.get('fat', 0),
             fiber=balance.nutrients.get('fiber', 0),
             meal_date=balance.meal_date,
@@ -178,52 +179,61 @@ class BalanceService:
         meals = self.db.query(Meal).filter(
             and_(
                 Meal.user_id == user_id,
-                extract('year', Meal.meal_date) == year,
-                extract('month', Meal.meal_date) == month
+                extract('year', Meal.timestamp) == year,
+                extract('month', Meal.timestamp) == month
             )
         ).all()
 
         # 날짜별로 식사 기록 그룹화
         daily_meals = {}
+        perfect_balance_count = 0  # 완벽 밸런스 달성 일수
+
         for meal in meals:
-            date_str = meal.meal_date.strftime("%Y-%m-%d")
+            date_str = meal.timestamp.strftime("%Y-%m-%d")
             if date_str not in daily_meals:
                 daily_meals[date_str] = {
-                    "totalCalories": 0,
-                    "balanceScore": 0,
-                    "meals": [],
-                    "weather": meal.weather,
-                    "mood": meal.mood,
-                    "exercise": meal.exercise,
-                    "waterIntake": meal.water_intake
+                    "total_calories": 0,
+                    "balance_score": 0,
+                    "meals": []
                 }
             
             # 식사 정보 추가
             daily_meals[date_str]["meals"].append({
                 "type": meal.meal_type,
-                "menu": meal.menu,
-                "calories": meal.calories,
+                "food_name": meal.food_name,
+                "calories": float(Decimal(str(meal.calories or 0))),
                 "nutrients": {
-                    "protein": meal.protein,
-                    "carbs": meal.carbs,
-                    "fat": meal.fat,
-                    "fiber": meal.fiber
-                },
-                "tags": self._generate_tags(meal)
+                    "carbohydrates": float(Decimal(str(meal.carbohydrates or 0))),
+                    "protein": float(Decimal(str(meal.protein or 0))),
+                    "fat": float(Decimal(str(meal.fat or 0)))
+                }
             })
             
             # 총 칼로리 계산
-            daily_meals[date_str]["totalCalories"] += meal.calories
+            daily_meals[date_str]["total_calories"] += float(Decimal(str(meal.calories or 0)))
+
+        # 각 날짜별 밸런스 점수 계산 및 완벽 밸런스 체크
+        for date_str, day_data in daily_meals.items():
+            # 해당 날짜의 총 영양소 계산
+            total_nutrients = {
+                "carbohydrates": sum(float(Decimal(str(meal["nutrients"]["carbohydrates"]))) for meal in day_data["meals"]),
+                "protein": sum(float(Decimal(str(meal["nutrients"]["protein"]))) for meal in day_data["meals"]),
+                "fat": sum(float(Decimal(str(meal["nutrients"]["fat"]))) for meal in day_data["meals"])
+            }
             
             # 밸런스 점수 계산
-            daily_meals[date_str]["balanceScore"] = self.calculate_balance_score({
-                "protein": meal.protein.real,
-                "carbs": meal.carbs.real,
-                "fat": meal.fat.real,
-                "fiber": meal.fiber.real
-            })
+            balance_score = self.calculate_balance_score(total_nutrients)
+            day_data["balance_score"] = balance_score
+            
+            # 완벽 밸런스 체크 (90점 이상)
+            if balance_score >= 90:
+                perfect_balance_count += 1
 
-        return daily_meals
+        return {
+            "daily_meals": daily_meals,
+            "perfect_balance_count": perfect_balance_count,
+            "total_days": len(daily_meals)
+        }
 
     def get_user_stats(self, user_id: int) -> dict:
         # 현재 달의 통계 계산
@@ -391,4 +401,46 @@ class BalanceService:
         if meal_times:
             hour = int(meal_times[0])
             return f"{hour:02d}:00"
-        return "12:00" 
+        return "12:00"
+
+    def get_weekly_balance_score(self, user_id: int) -> float:
+        """지난 7일간의 평균 밸런스 점수를 계산합니다."""
+        # 날짜 범위 계산
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=6)  # 7일 전
+        
+        # 각 날짜별 식사 기록 조회
+        daily_scores = []
+        
+        for day_offset in range(7):
+            current_date = end_date - timedelta(days=day_offset)
+            start_of_day = datetime.combine(current_date, datetime.min.time())
+            end_of_day = datetime.combine(current_date, datetime.max.time())
+            
+            # 해당 날짜의 모든 식사 조회
+            daily_meals = self.db.query(Meal).filter(
+                Meal.user_id == user_id,
+                Meal.timestamp >= start_of_day,
+                Meal.timestamp <= end_of_day
+            ).all()
+            
+            if daily_meals:
+                # 일일 총 영양소 계산
+                daily_nutrients = {
+                    'carbohydrates': sum(Decimal(str(meal.carbohydrates or 0)) for meal in daily_meals),
+                    'protein': sum(Decimal(str(meal.protein or 0)) for meal in daily_meals),
+                    'fat': sum(Decimal(str(meal.fat or 0)) for meal in daily_meals)
+                }
+                
+                # float로 변환
+                daily_nutrients = {k: float(v) for k, v in daily_nutrients.items()}
+                
+                # 일일 밸런스 점수 계산
+                daily_score = self.calculate_balance_score(daily_nutrients)
+                if daily_score is not None:
+                    daily_scores.append(daily_score)
+        
+        # 평균 점수 계산
+        if daily_scores:
+            return sum(daily_scores) / len(daily_scores)
+        return 0  # 데이터가 없는 경우 0 반환 

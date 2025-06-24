@@ -10,7 +10,6 @@ console.log('Current hostname:', window.location.hostname);
 console.log('API Base URL:', API_BASE_URL);
 
 const MainPage = () => {
-  const [activeTab, setActiveTab] = useState('Monthly');
   const [loading, setLoading] = useState({
     breakfast: false,
     lunch: false,
@@ -107,7 +106,6 @@ const MainPage = () => {
 
         setNutritionStats(prev => ({
           ...statsData,
-          daily_calorie_goal: 2000,
           meal_calories: {
             breakfast: breakfast_calories,
             lunch: lunch_calories,
@@ -130,9 +128,9 @@ const MainPage = () => {
     } else if (percentage < 100) {
       return "권장 칼로리에 거의 다달았어요! 👏";
     } else if (percentage === 100) {
-      return "하루 권장 칼로리에 도달했어요! 내일을 위해 조절해보세요 💪";
+      return "하루 권장 칼로리에 도달했어요! 💪";
     } else{
-      return "목표를 초과했어요! 내일을 위해 조절해보세요 💪";
+      return "내일을 위해 조절해보세요💪";
     }
   };
 
@@ -244,7 +242,7 @@ const MainPage = () => {
           </div>
 
           {/* Progress Bar */}
-          <div className="mt-4 mb-4">
+          <div className="mt-8">
             <div className="w-full bg-white bg-opacity-50 rounded-full h-2.5">
               <div 
                 className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500 ease-in-out" 
@@ -259,27 +257,8 @@ const MainPage = () => {
           </div>
         </div>
 
-        {/* Period Filter */}
-        <div className="mt-6">
-          <div className="grid grid-cols-3 bg-white bg-opacity-20 rounded-xl p-1">
-            {(['Daily', 'Weekly', 'Monthly']).map((tab) => (
-              <button 
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`py-2 rounded-xl text-sm font-medium whitespace-nowrap cursor-pointer ${
-                  activeTab === tab 
-                    ? 'bg-emerald-500 text-white' 
-                    : 'text-gray-700'
-                }`}
-              >
-                {tab === 'Daily' ? '일별' : tab === 'Weekly' ? '주별' : '월별'}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Meal List */}
-        <div className="mt-6">
+        <div className="mt-8">
           <div className="space-y-4">
             {/* Breakfast */}
             <div className="bg-white rounded-xl p-4 flex items-center">
@@ -402,6 +381,7 @@ const MainPage = () => {
             </div>
           </div>
         </div>
+
         {/* Bottom Navigation */}
         <BottomNav />
       </div>

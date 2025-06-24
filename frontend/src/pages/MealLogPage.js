@@ -43,30 +43,34 @@ const MealLogPage = () => {
         
         // 식사 데이터 변환 및 총 칼로리 계산
         let total = 0;
-        const formattedMeals = Object.entries(mealsData)
-          .map(([type, foods]) => {
-            const mealCalories = foods.reduce((sum, food) => sum + food.calories, 0);
+        let allMeals = [];
+        
+        Object.entries(mealsData).forEach(([type, foods]) => {
+          foods.forEach(food => {
+            const mealCalories = food.calories;
             total += mealCalories;
-            return {
-              id: type,
+            
+            allMeals.push({
+              id: food.id,
               type: type.charAt(0).toUpperCase() + type.slice(1),
               time: type === 'breakfast' ? '아침' : type === 'lunch' ? '점심' : '저녁',
-              foods: foods.map(food => ({
-                id: food.id,
-                name: food.name,
-                calories: food.calories,
-                nutrients: {
-                  carbs: food.nutrients.carbohydrates,
-                  protein: food.nutrients.protein,
-                  fat: food.nutrients.fat
-                }
-              }))
-            };
-          })
-          .filter(meal => meal.foods.length > 0);
+              name: food.name,
+              calories: food.calories,
+              nutrients: {
+                carbs: food.nutrients.carbohydrates,
+                protein: food.nutrients.protein,
+                fat: food.nutrients.fat
+              },
+              timestamp: food.timestamp
+            });
+          });
+        });
+
+        // 생성 시간순으로 정렬 (최신이 맨 아래로)
+        allMeals.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         setTotalCalories(total);
-        setMealLogs(formattedMeals);
+        setMealLogs(allMeals);
       } catch (error) {
         console.error('Error fetching meal data:', error);
         setMealLogs([]);
@@ -89,20 +93,24 @@ const MealLogPage = () => {
   };
 
   const MealCard = ({ food, mealType, mealTime, mealId }) => (
-    <div 
-      className="bg-white bg-opacity-20 backdrop-blur-lg rounded-xl p-4 mb-4 cursor-pointer hover:bg-opacity-30 transition-all"
-      onClick={() => navigate(`/edit-meal/${mealId}`)}
-    >
+    <div className="bg-white bg-opacity-20 backdrop-blur-lg rounded-xl p-4 mb-4 relative">
       <div className="flex justify-between items-start mb-3">
         <div>
-          <div className="flex items-center">
-            <span className="text-lg font-bold text-gray-800">{mealType}</span>
-            <span className="ml-2 text-sm text-gray-600">{mealTime}</span>
+          <h3 className="text-xl font-semibold text-gray-800">{food.name}</h3>
+          <div className="flex items-center mt-1">
+            <span className="text-sm text-gray-600">{mealTime}</span>
           </div>
-          <h3 className="text-xl font-semibold text-gray-800 mt-1">{food.name}</h3>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-medium text-gray-600">{food.calories} kcal</div>
+        <div className="flex items-start space-x-4">
+          <div className="text-right">
+            <div className="text-sm font-medium text-gray-600">{food.calories} kcal</div>
+          </div>
+          <button
+            onClick={() => navigate(`/edit-meal/${mealId}`)}
+            className="text-emerald-600 hover:text-emerald-700 transition-colors"
+          >
+            <i className="fas fa-edit text-lg"></i>
+          </button>
         </div>
       </div>
 
@@ -163,16 +171,18 @@ const MealLogPage = () => {
 
         {/* 식사 목록 */}
         <div className="space-y-4 mt-4">
-          {mealLogs.map(meal => (
-            meal.foods.map((food, index) => (
-              <MealCard 
-                key={`${meal.id}-${index}`}
-                food={food}
-                mealType={meal.type}
-                mealTime={meal.time}
-                mealId={food.id}
-              />
-            ))
+          {mealLogs.map((meal, index) => (
+            <MealCard 
+              key={`${meal.id}-${index}`}
+              food={{
+                name: meal.name,
+                calories: meal.calories,
+                nutrients: meal.nutrients
+              }}
+              mealType={meal.type}
+              mealTime={meal.time}
+              mealId={meal.id}
+            />
           ))}
           {mealLogs.length === 0 && (
             <div className="text-center text-gray-500 mt-8">

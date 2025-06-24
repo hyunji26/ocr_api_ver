@@ -5,6 +5,11 @@ from app.api.v1 import food_recognition, balance
 from app.database import engine, Base, create_tables
 from sqlalchemy import inspect
 from app.models.balance import User, Meal
+import pytz
+from datetime import datetime
+
+# 한국 시간대 설정
+KST = pytz.timezone('Asia/Seoul')
 
 # 로깅 설정
 logging.basicConfig(

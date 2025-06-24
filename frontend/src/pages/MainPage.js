@@ -198,12 +198,16 @@ const MainPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-400 to-emerald-50 font-sans relative">
       <div className="max-w-lg mx-auto bg-transparent px-6 pb-24 overflow-y-auto">
+
         {/* Header Section */}
         <header className="pt-6 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">NutriScan</h1>
           </div>
-          <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer">
+          <div 
+            onClick={() => navigate('/profile')}
+            className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer"
+          >
             <i className="fas fa-user text-gray-600"></i>
           </div>
         </header>

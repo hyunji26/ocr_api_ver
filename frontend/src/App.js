@@ -8,6 +8,7 @@ import ProfilePage from './pages/ProfilePage';
 import MealLogPage from './pages/MealLogPage';
 import OcrResultPage from './pages/OcrResultPage';
 import ManualMealPage from './pages/ManualMealPage';
+import EditMealPage from './pages/EditMealPage';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -117,6 +118,14 @@ function App() {
           element={
             <PrivateRoute>
               <ManualMealPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/edit-meal/:mealId"
+          element={
+            <PrivateRoute>
+              <EditMealPage />
             </PrivateRoute>
           }
         />

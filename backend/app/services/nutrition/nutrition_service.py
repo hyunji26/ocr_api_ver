@@ -24,6 +24,62 @@ class NutritionService:
             logger.error(f"영양 정보 DB 로드 중 오류 발생: {str(e)}")
             self.nutrition_db = pd.DataFrame()  # 빈 DataFrame으로 초기화
 
+        # 1인분 기준량 정의
+        self.serving_size_guess = {
+            "육회비빔밥": 500,
+            "비빔밥": 450,
+            "불고기덮밥": 400,
+            "김치찌개": 350,
+            "된장찌개": 350,
+            "순두부찌개": 400,
+            "부대찌개": 500,
+            "삼겹살": 200,
+            "갈비찜": 250,
+            "닭갈비": 350,
+            "제육볶음": 300,
+            "치킨": 250,
+            "튀김류": 150,
+            "떡볶이": 400,
+            "순대": 250,
+            "김밥": 200,
+            "라면": 500,
+            "볶음밥": 400,
+            "오므라이스": 450,
+            "카레라이스": 450,
+            "계란말이": 150,
+            "계란후라이": 60,
+            "스크램블에그": 100,
+            "샐러드": 150,
+            "우유": 200,
+            "두유": 190,
+            "요거트": 100,
+            "바나나": 100,
+            "사과": 200,
+            "오렌지": 150,
+            "밥": 210,
+            "잡곡밥": 210,
+            "현미밥": 210,
+            "흰죽": 250,
+            "죽": 300,
+            "우동": 500,
+            "잔치국수": 450,
+            "칼국수": 500,
+            "짬뽕": 550,
+            "짜장면": 550,
+            "돈까스": 300,
+            "햄버거": 250,
+            "피자": 130,
+            "제육덮밥": 400,
+            "오징어볶음": 300,
+            "돼지김치찌개": 400,
+            "참치순두부찌개": 400,
+            "골뱅이비빔면": 450,
+            "물냉면": 550,
+            "비빔냉면": 500,
+            "된장라면": 500,
+            "공기밥": 210
+        }
+
         logger.info("영양 정보 서비스 초기화")
         # API 키는 이미 인코딩되어 있으므로 그대로 사용
         self.api_key = 'DikYPQYEtB2A%2BwML43XYgXpRPMp06zngL5Yq5P8VlVfFKY9g46988MjMoeyrex0s876GbTbBGWDZzJQPT5aCEg%3D%3D'
@@ -171,10 +227,40 @@ class NutritionService:
             
         return cleaned
 
-    async def extract_nutrition_info(self, food_name: str, confidence: float = 1.0) -> Dict:
-        """음식 이름으로 영양 정보를 검색합니다."""
+    def get_serving_size(self, food_name: str) -> int:
+        """음식 이름으로 1인분 기준량을 추정합니다."""
+        # 기본값은 100g (1인분 정보가 없는 경우)
+        default_serving = 100
+        
+        # 정확한 일치 검색
+        if food_name in self.serving_size_guess:
+            return self.serving_size_guess[food_name]
+        
+        # 부분 일치 검색 (가장 긴 일치하는 키워드 찾기)
+        matching_items = [(key, value) for key, value in self.serving_size_guess.items() 
+                         if key in food_name or food_name in key]
+        
+        if matching_items:
+            # 가장 긴 키워드와 매칭되는 값 반환
+            longest_match = max(matching_items, key=lambda x: len(x[0]))
+            return longest_match[1]
+        
+        return default_serving
+
+    def _calculate_per_serving(self, nutrition_info: Dict[str, float], serving_size: int) -> Dict[str, float]:
+        """100g 기준 영양성분을 1인분 기준으로 변환합니다."""
+        serving_multiplier = serving_size / 100.0
+        return {
+            "calories": round(nutrition_info["calories"] * serving_multiplier, 1),
+            "carbs": round(nutrition_info["carbs"] * serving_multiplier, 1),
+            "protein": round(nutrition_info["protein"] * serving_multiplier, 1),
+            "fat": round(nutrition_info["fat"] * serving_multiplier, 1)
+        }
+
+    async def extract_nutrition_info(self, food_name: str, confidence: float = 1.0) -> Optional[Dict]:
+        """음식 이름으로 영양 정보를 검색하고 1인분 기준으로 변환합니다."""
         try:
-            # 음식 이름 정제 (수량 정보 제거)
+            # 음식 이름 정제
             cleaned_name = self._clean_food_name(food_name)
             logger.info(f"정제된 음식 이름: {cleaned_name} (원본: {food_name})")
             
@@ -182,24 +268,36 @@ class NutritionService:
             result = await self._search_food(cleaned_name)
             
             if result:
-                nutrition_info = {
-                    "name": cleaned_name,  # 정제된 메뉴명 사용
+                # 1인분 기준량 계산
+                serving_size = self.get_serving_size(cleaned_name)
+                logger.info(f"1인분 기준량: {serving_size}g")
+
+                # 100g 기준 영양성분
+                base_nutrition = {
                     "calories": float(result.get('AMT_NUM1', 0)),  # 열량 (kcal)
-                    "nutrients": {
-                        "carbohydrates": float(result.get('AMT_NUM6', 0)),  # 탄수화물 (g)
-                        "protein": float(result.get('AMT_NUM3', 0)),  # 단백질 (g)
-                        "fat": float(result.get('AMT_NUM4', 0))  # 지방 (g)
-                    }
+                    "carbs": float(result.get('AMT_NUM6', 0)),    # 탄수화물 (g)
+                    "protein": float(result.get('AMT_NUM3', 0)),  # 단백질 (g)
+                    "fat": float(result.get('AMT_NUM4', 0))       # 지방 (g)
                 }
-                logger.info(f"'{food_name}'의 영양 정보 찾음: {nutrition_info}")
+
+                # 1인분 기준으로 변환
+                per_serving = self._calculate_per_serving(base_nutrition, serving_size)
+
+                nutrition_info = {
+                    "name": cleaned_name,
+                    "serving_size": serving_size,
+                    **per_serving
+                }
+                
+                logger.info(f"'{food_name}'의 영양 정보 찾음 (1인분 {serving_size}g 기준): {nutrition_info}")
                 return nutrition_info
             
             logger.warning(f"'{food_name}'에 대한 영양 정보를 찾을 수 없음")
-            return self.get_empty_nutrition()
+            return None
             
         except Exception as e:
-            logger.error(f"영양 정보 추출 중 오류 발생: {str(e)}")
-            return self.get_empty_nutrition()
+            logger.error(f"영양 정보 조회 중 오류 발생: {str(e)}")
+            return None
 
     def get_empty_nutrition(self) -> Dict:
         """빈 영양 정보를 반환합니다."""

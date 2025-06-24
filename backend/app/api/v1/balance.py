@@ -9,6 +9,7 @@ import logging
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 from jwt import PyJWT
+import pytz
 
 from app.database import get_db
 from app.models.balance import Meal, User
@@ -25,6 +26,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24시간
 
 # 비밀번호 해싱
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# 한국 시간대 설정
+KST = pytz.timezone('Asia/Seoul')
 
 router = APIRouter(prefix="/balance", tags=["Balance"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/balance/token")
@@ -259,30 +263,44 @@ async def add_meal(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """인증된 사용자의 새로운 식사 기록을 추가합니다."""
+    """새로운 식사 기록을 추가합니다."""
     try:
-        new_meal = Meal(
+        # 현재 시간을 KST로 설정
+        now = datetime.now(KST)
+        
+        db_meal = Meal(
             user_id=current_user.id,
             meal_type=meal.meal_type,
             food_name=meal.food_name,
+            timestamp=now,
             calories=meal.calories,
             carbohydrates=meal.carbohydrates,
             protein=meal.protein,
             fat=meal.fat
         )
         
-        db.add(new_meal)
-        try:
-            db.commit()
-            db.refresh(new_meal)
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to save meal: {str(e)}")
+        db.add(db_meal)
+        db.commit()
+        db.refresh(db_meal)
         
-        return {"message": "Meal added successfully", "meal_id": new_meal.id}
-        
+        return {
+            "id": db_meal.id,
+            "meal_type": db_meal.meal_type,
+            "food_name": db_meal.food_name,
+            "timestamp": db_meal.timestamp,
+            "calories": db_meal.calories,
+            "nutrients": {
+                "carbohydrates": db_meal.carbohydrates,
+                "protein": db_meal.protein,
+                "fat": db_meal.fat
+            }
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"식사 기록 추가 중 오류가 발생했습니다: {str(e)}"
+        )
 
 @router.post("/balance", response_model=Balance)
 def create_balance(balance: BalanceCreate, db: Session = Depends(get_db)):

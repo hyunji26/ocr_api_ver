@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import { useMeal } from '../context/MealContext';
 
 const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호스트 주소 사용
 
@@ -17,6 +18,7 @@ const MealLogPage = () => {
   const [selectedMeal, setSelectedMeal] = useState(null);
   const [totalCalories, setTotalCalories] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { shouldRefresh } = useMeal();
 
   useEffect(() => {
     const fetchMealData = async () => {
@@ -66,7 +68,7 @@ const MealLogPage = () => {
           });
         });
 
-        // 생성 시간순으로 정렬 (최신이 맨 아래로)
+        // 시간순으로 정렬 (최신이 맨 아래로)
         allMeals.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         setTotalCalories(total);
@@ -78,7 +80,7 @@ const MealLogPage = () => {
     };
 
     fetchMealData();
-  }, [selectedDate, navigate]);
+  }, [selectedDate, navigate, shouldRefresh]);
 
   const handleDateChange = (offset) => {
     const newDate = new Date(selectedDate);

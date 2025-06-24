@@ -2,6 +2,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import MainAlert from '../components/MainAlert';
+import { useMeal } from '../context/MealContext';
 
 // API 기본 URL 설정
 const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호스트 주소 사용
@@ -33,6 +35,9 @@ const MainPage = () => {
       dinner: null
     }
   });
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
 
   const fileInputRefs = {
     breakfast: useRef(null),
@@ -40,6 +45,7 @@ const MainPage = () => {
     dinner: useRef(null)
   };
   const navigate = useNavigate();
+  const { shouldRefresh } = useMeal();
 
   // API에서 영양 정보 가져오기
   useEffect(() => {
@@ -118,7 +124,19 @@ const MainPage = () => {
     };
 
     fetchNutritionStats();
-  }, [navigate]);
+  }, [navigate, shouldRefresh]);
+
+  useEffect(() => {
+    let timeoutId;
+    if (showAlert) {
+      timeoutId = setTimeout(() => {
+        setShowAlert(false);
+      }, 2000);
+    }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [showAlert]);
 
   const getHealthMessage = (percentage) => {
     if (percentage === 0) {
@@ -149,6 +167,15 @@ const MainPage = () => {
       formData.append('file', file);
 
       console.log('API 호출 시작...');
+      
+      // OCR 결과 페이지로 먼저 이동
+      navigate('/ocr-result', { 
+        state: { 
+          mealType,
+          isProcessing: true
+        } 
+      });
+
       const response = await fetch(`${API_BASE_URL}/api/v1/food/analyze`, {
         method: 'POST',
         headers: {
@@ -168,12 +195,21 @@ const MainPage = () => {
       const data = await response.json();
       console.log('API 응답 결과:', data);
       
-      // 결과 페이지로 이동
-      navigate('/ocr-result', { state: { results: data, mealType } });
+      navigate('/ocr-result', { 
+        state: { 
+          results: data, 
+          mealType,
+          isProcessing: false 
+        },
+        replace: true
+      });
 
     } catch (error) {
       console.error('API 호출 중 에러 발생:', error);
-      alert('이미지 분석 중 오류가 발생했습니다.');
+      setAlertMessage('이미지 분석 중 오류가 발생했습니다.');
+      setAlertType('error');
+      setShowAlert(true);
+      navigate(-1);
     } finally {
       setLoading(prev => ({ ...prev, [mealType]: false }));
     }
@@ -196,7 +232,7 @@ const MainPage = () => {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-400 to-emerald-50 font-sans relative">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-400 to-emerald-50 font-sans relative pb-[72px]">
       <div className="max-w-lg mx-auto bg-transparent px-6 pb-24 overflow-y-auto">
 
         {/* Header Section */}
@@ -285,7 +321,6 @@ const MainPage = () => {
                 ref={fileInputRefs.breakfast}
                 onChange={(e) => handleFileSelect(e, 'breakfast')}
                 accept="image/*"
-                capture="environment"
                 className="hidden"
               />
               <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
@@ -325,7 +360,6 @@ const MainPage = () => {
                 ref={fileInputRefs.lunch}
                 onChange={(e) => handleFileSelect(e, 'lunch')}
                 accept="image/*"
-                capture="environment"
                 className="hidden"
               />
               <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center">
@@ -365,7 +399,6 @@ const MainPage = () => {
                 ref={fileInputRefs.dinner}
                 onChange={(e) => handleFileSelect(e, 'dinner')}
                 accept="image/*"
-                capture="environment"
                 className="hidden"
               />
               <div className="w-10 h-10 bg-purple-50 rounded-full flex items-center justify-center">

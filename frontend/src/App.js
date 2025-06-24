@@ -9,6 +9,7 @@ import MealLogPage from './pages/MealLogPage';
 import OcrResultPage from './pages/OcrResultPage';
 import ManualMealPage from './pages/ManualMealPage';
 import EditMealPage from './pages/EditMealPage';
+import { MealProvider } from './context/MealContext';
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -59,81 +60,83 @@ function ScrollToTop() {
 
 function App() {
   return (
-    <Router>
-      <ScrollToTop />
-      <Routes>
-        {/* 공개 라우트 */}
-        <Route
-          path="/login"
-          element={
-            <PublicRoute>
-              <LoginPage />
-            </PublicRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicRoute>
-              <RegisterPage />
-            </PublicRoute>
-          }
-        />
+    <MealProvider>
+      <Router>
+        <ScrollToTop />
+        <Routes>
+          {/* 공개 라우트 */}
+          <Route
+            path="/login"
+            element={
+              <PublicRoute>
+                <LoginPage />
+              </PublicRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <PublicRoute>
+                <RegisterPage />
+              </PublicRoute>
+            }
+          />
 
-        {/* 보호된 라우트 */}
-        <Route
-          path="/"
-          element={
-            <PrivateRoute>
-              <MainPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/ocr-result"
-          element={
-            <PrivateRoute>
-              <OcrResultPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <PrivateRoute>
-              <ProfilePage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/meal-log"
-          element={
-            <PrivateRoute>
-              <MealLogPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/manual-meal"
-          element={
-            <PrivateRoute>
-              <ManualMealPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/edit-meal/:mealId"
-          element={
-            <PrivateRoute>
-              <EditMealPage />
-            </PrivateRoute>
-          }
-        />
+          {/* 보호된 라우트 */}
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <MainPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/ocr-result"
+            element={
+              <PrivateRoute>
+                <OcrResultPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <PrivateRoute>
+                <ProfilePage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/meal-log"
+            element={
+              <PrivateRoute>
+                <MealLogPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/manual-meal"
+            element={
+              <PrivateRoute>
+                <ManualMealPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/edit-meal/:mealId"
+            element={
+              <PrivateRoute>
+                <EditMealPage />
+              </PrivateRoute>
+            }
+          />
 
-        {/* 404 페이지 */}
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </Router>
+          {/* 404 페이지 */}
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Router>
+    </MealProvider>
   );
 }
 

@@ -285,8 +285,12 @@ class NutritionService:
 
                 nutrition_info = {
                     "name": cleaned_name,
-                    "serving_size": serving_size,
-                    **per_serving
+                    "calories": per_serving["calories"],
+                    "nutrients": {
+                        "carbohydrates": per_serving["carbs"],
+                        "protein": per_serving["protein"],
+                        "fat": per_serving["fat"]
+                    }
                 }
                 
                 logger.info(f"'{food_name}'의 영양 정보 찾음 (1인분 {serving_size}g 기준): {nutrition_info}")

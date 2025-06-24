@@ -33,4 +33,13 @@ body {
       font-size: 15px;
       padding-bottom: 56px; /* BottomNav 높이만큼 */
     }
-  } 
+  }
+
+/* 선택 영역 스타일 수정 */
+::selection {
+  background-color: transparent;
+}
+
+::-moz-selection {
+  background-color: transparent;
+} 

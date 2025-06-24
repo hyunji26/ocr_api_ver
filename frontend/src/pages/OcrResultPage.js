@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import BottomNav from '../components/BottomNav';
+import LoadingSpinner from '../components/LoadingSpinner';
+import SaveAlert from '../components/SaveAlert';
+import { useMeal } from '../context/MealContext';
 
 // API 기본 URL 설정
 const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호스트 주소 사용
@@ -11,9 +14,16 @@ console.log('API Base URL:', API_BASE_URL);
 const OcrResultPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { triggerRefresh } = useMeal();
   const [activeTab, setActiveTab] = useState(1);
   const [selectedFoods, setSelectedFoods] = useState(new Set());
   const [isSaving, setIsSaving] = useState(false);
+  const [showSaveAlert, setShowSaveAlert] = useState(false);
+  const [loadingMessages] = useState([
+    "음식을 인식하고 있어요...",
+    "영양 정보를 분석 중이에요..."
+  ]);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
   const [existingStats, setExistingStats] = useState({
     total_calories: 0,
     nutrients: {
@@ -66,6 +76,31 @@ const OcrResultPage = () => {
   useEffect(() => {
     fetchBalanceStats();
   }, []);
+
+  useEffect(() => {
+    let intervalId;
+    if (location.state?.isProcessing) {
+      intervalId = setInterval(() => {
+        setCurrentMessageIndex(prev => (prev + 1) % loadingMessages.length);
+      }, 4000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [location.state?.isProcessing, loadingMessages.length]);
+
+  useEffect(() => {
+    let timeoutId;
+    if (showSaveAlert) {
+      timeoutId = setTimeout(() => {
+        setShowSaveAlert(false);
+        navigate('/');
+      }, 1500);
+    }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [showSaveAlert, navigate]);
 
   const processResults = () => {
     const data = location.state?.results;
@@ -133,10 +168,10 @@ const OcrResultPage = () => {
         const mealData = {
           meal_type: mealType.toLowerCase(),
           food_name: item.name,
-          calories: parseFloat(item.nutrition_info?.calories || 0),
-          carbohydrates: parseFloat(item.nutrition_info?.nutrients?.carbohydrates || 0),
-          protein: parseFloat(item.nutrition_info?.nutrients?.protein || 0),
-          fat: parseFloat(item.nutrition_info?.nutrients?.fat || 0)
+          calories: parseFloat(item.calories || 0),
+          carbohydrates: parseFloat(item.nutrients?.carbohydrates || 0),
+          protein: parseFloat(item.nutrients?.protein || 0),
+          fat: parseFloat(item.nutrients?.fat || 0)
         };
 
         const token = localStorage.getItem('token');
@@ -158,44 +193,13 @@ const OcrResultPage = () => {
           const errorData = await response.json();
           throw new Error(errorData.detail || 'Failed to save meal');
         }
-
-        await fetchBalanceStats(); // ← 새로고침 함수 호출
       }
 
-      // 저장 성공 후 기존 통계 업데이트
-      const token = localStorage.getItem('token');
-      const statsResponse = await fetch(`${API_BASE_URL}/api/v1/balance/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      // 식사별 칼로리 정보도 업데이트
-      const mealsResponse = await fetch(`${API_BASE_URL}/api/v1/balance/meals`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (statsResponse.ok && mealsResponse.ok) {
-        const newStats = await statsResponse.json();
-        const mealCalories = await mealsResponse.json();
-        
-        setExistingStats({
-          total_calories: newStats.total_calories || 0,
-          nutrients: {
-            carbohydrates: newStats.nutrients?.carbohydrates || 0,
-            protein: newStats.nutrients?.protein || 0,
-            fat: newStats.nutrients?.fat || 0
-          },
-          meal_calories: mealCalories  // 식사별 칼로리 정보 추가
-        });
-        // 선택된 음식 초기화
-        setSelectedFoods(new Set());
-      }
-
-      alert('선택한 음식이 저장되었습니다.');
-      navigate('/');
+      // 저장 성공 후 상태 업데이트 트리거
+      triggerRefresh();
+      
+      // 저장 완료 alert 표시
+      setShowSaveAlert(true);
     } catch (error) {
       console.error('Error saving meals:', error);
       alert('음식 저장 중 오류가 발생했습니다: ' + error.message);
@@ -206,133 +210,152 @@ const OcrResultPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-400 to-emerald-50 font-sans relative pb-[72px]">
-      {/* Header Area */}
-      <div className="p-6 text-white">
-        <div className="flex items-center gap-4 mb-4">
-          <button onClick={() => navigate(-1)} className="text-2xl">
-            <i className="fas fa-arrow-left"></i>
-          </button>
-          <div className="flex items-center gap-2">
-            <i className="fas fa-utensils text-xl"></i>
-            <span className="text-xl">{mealType}</span>
-          </div>
-          <button 
-            onClick={saveMeals}
-            disabled={isSaving || selectedFoods.size === 0}
-            className={`ml-auto px-4 py-2 rounded-full text-sm font-medium transition-all
-              ${selectedFoods.size > 0 
-                ? 'bg-white text-emerald-500 hover:bg-emerald-50' 
-                : 'bg-white/50 text-white/50 cursor-not-allowed'}`}
-          >
-            {isSaving ? '저장 중...' : `${selectedFoods.size}개 저장`}
-          </button>
-        </div>
-
-        <div className="mb-6">
-          <h1 className="text-4xl font-bold mb-2">
-            {Math.round(totalNutrition.calories).toLocaleString()} kcal
-          </h1>
-          <div className="flex items-center gap-2 text-sm opacity-90">
-            <span>{caloriePercentage}%</span>
-            <div className="flex-1 h-1 bg-white bg-opacity-30 rounded-full">
-              <div 
-                className="h-full bg-white rounded-full transition-all" 
-                style={{ width: `${Math.min(caloriePercentage, 100)}%` }}
-              ></div>
-            </div>
-          </div>
-          <p className="text-sm mt-2 flex items-center gap-2">
-            <i className="fas fa-circle-check"></i>
-            <span>
-              {selectedFoods.size > 0 
-                ? `이 메뉴들로 하루 권장량의 ${caloriePercentage}%를 채울 수 있어요.`
-                : '음식을 선택해주세요.'}
-            </span>
+      {showSaveAlert && <SaveAlert />}
+      {(isSaving || location.state?.isProcessing) && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex flex-col items-center justify-center">
+          <LoadingSpinner />
+          <p className="text-white mt-4 text-lg font-medium">
+            {isSaving ? '저장 중...' : loadingMessages[currentMessageIndex]}
           </p>
         </div>
-
-        <div className="text-sm opacity-90">
-          <div className="flex items-center gap-1">
-            <span>탄 {formatNumber(totalNutrition.carbohydrates)}g</span>
-            <span>•</span>
-            <span>단 {formatNumber(totalNutrition.protein)}g</span>
-            <span>•</span>
-            <span>지 {formatNumber(totalNutrition.fat)}g</span>
+      )}
+      
+      {location.state?.isProcessing ? (
+        <div className="flex flex-col items-center justify-center h-screen">
+          <div className="text-white text-center p-6">
+            <h1 className="text-2xl font-bold mb-4">음식 분석 중</h1>
+            <p className="text-lg opacity-90">{loadingMessages[currentMessageIndex]}</p>
           </div>
         </div>
-      </div>
-
-      {/* Food List */}
-      <div className="flex-1 bg-[#F1FFF3] rounded-t-[2rem] p-6 overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium text-gray-800">
-            인식된 음식 목록
-            <span className="ml-2 text-sm text-gray-500">총 {results.length}개</span>
-          </h2>
-        </div>
-
-        <div className="space-y-4">
-          {results.length > 0 ? (
-            results.map((item, index) => (
-              <div 
-                key={index} 
-                className={`bg-white rounded-2xl p-4 shadow-sm transition-all cursor-pointer
-                  ${selectedFoods.has(item.name) 
-                    ? 'ring-2 ring-emerald-500 shadow-emerald-100' 
-                    : 'hover:shadow-md'}`}
-                onClick={() => handleFoodSelect(item.name)}
+      ) : (
+        <>
+          {/* Header Area */}
+          <div className="p-6 text-white">
+            <div className="flex items-center gap-4 mb-4">
+              <button onClick={() => navigate(-1)} className="text-2xl">
+                <i className="fas fa-arrow-left"></i>
+              </button>
+              <div className="flex items-center gap-2">
+                <i className="fas fa-utensils text-xl"></i>
+                <span className="text-xl">{mealType}</span>
+              </div>
+              <button 
+                onClick={saveMeals}
+                disabled={isSaving || selectedFoods.size === 0}
+                className={`ml-auto px-4 py-2 rounded-full text-sm font-medium transition-all
+                  ${selectedFoods.size > 0 
+                    ? 'bg-white text-emerald-500 hover:bg-emerald-50' 
+                    : 'bg-white/50 text-white/50 cursor-not-allowed'}`}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`rounded-full p-3 transition-colors
-                    ${selectedFoods.has(item.name) 
-                      ? 'bg-emerald-500' 
-                      : 'bg-emerald-100'}`}
-                  >
-                    <i className={`fas fa-utensils text-lg
+                {isSaving ? '저장 중...' : `${selectedFoods.size}개 저장`}
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <h1 className="text-4xl font-bold mb-2">
+                {Math.round(totalNutrition.calories).toLocaleString()} kcal
+              </h1>
+              <div className="flex items-center gap-2 text-sm opacity-90">
+                <span>{caloriePercentage}%</span>
+                <div className="flex-1 h-1 bg-white bg-opacity-30 rounded-full">
+                  <div 
+                    className="h-full bg-white rounded-full transition-all" 
+                    style={{ width: `${Math.min(caloriePercentage, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+              <p className="text-sm mt-2 flex items-center gap-2">
+                <i className="fas fa-circle-check"></i>
+                <span>
+                  {selectedFoods.size > 0 
+                    ? `이 메뉴들로 하루 권장량의 ${caloriePercentage}%를 채울 수 있어요.`
+                    : '음식을 선택해주세요.'}
+                </span>
+              </p>
+            </div>
+
+            <div className="text-sm opacity-90">
+              <div className="flex items-center gap-1">
+                <span>탄 {formatNumber(totalNutrition.carbohydrates)}g</span>
+                <span>•</span>
+                <span>단 {formatNumber(totalNutrition.protein)}g</span>
+                <span>•</span>
+                <span>지 {formatNumber(totalNutrition.fat)}g</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Food List */}
+          <div className="flex-1 bg-[#F1FFF3] rounded-t-[2rem] p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-800">
+                인식된 음식 목록
+                <span className="ml-2 text-sm text-gray-500">총 {results.length}개</span>
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              {results.length > 0 ? (
+                results.map((item, index) => (
+                  <div 
+                    key={index} 
+                    className={`bg-white rounded-2xl p-4 shadow-sm transition-all cursor-pointer
                       ${selectedFoods.has(item.name) 
-                        ? 'text-white' 
-                        : 'text-emerald-500'}`}
-                    ></i>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-gray-800 mb-1">{item.name || '알 수 없음'}</h3>
-                    <div className="text-sm text-gray-500">
-                      <div className="flex items-center gap-2">
-                        <span>탄수화물 {formatNumber(item.nutrients?.carbohydrates)}g</span>
-                        <span>•</span>
-                        <span>단백질 {formatNumber(item.nutrients?.protein)}g</span>
+                        ? 'ring-2 ring-emerald-500 shadow-emerald-100' 
+                        : 'hover:shadow-md'}`}
+                    onClick={() => handleFoodSelect(item.name)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`rounded-full p-3 transition-colors
+                        ${selectedFoods.has(item.name) 
+                          ? 'bg-emerald-500' 
+                          : 'bg-emerald-100'}`}
+                      >
+                        <i className={`fas fa-utensils text-lg
+                          ${selectedFoods.has(item.name) 
+                            ? 'text-white' 
+                            : 'text-emerald-500'}`}
+                        ></i>
                       </div>
-                      <div className="mt-1">
-                        <span>지방 {formatNumber(item.nutrients?.fat)}g</span>
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-800 mb-1">{item.name || '알 수 없음'}</h3>
+                        <div className="text-sm text-gray-500">
+                          <div className="flex items-center gap-2">
+                            <span>탄수화물 {formatNumber(item.nutrients?.carbohydrates)}g</span>
+                            <span>•</span>
+                            <span>단백질 {formatNumber(item.nutrients?.protein)}g</span>
+                          </div>
+                          <div className="mt-1">
+                            <span>지방 {formatNumber(item.nutrients?.fat)}g</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-emerald-500 font-medium">
+                        {Math.round(item.calories || 0).toLocaleString()} kcal
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                        ${selectedFoods.has(item.name)
+                          ? 'border-emerald-500 bg-emerald-500'
+                          : 'border-gray-300'}`}
+                      >
+                        {selectedFoods.has(item.name) && (
+                          <i className="fas fa-check text-white text-sm"></i>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <div className="text-emerald-500 font-medium">
-                    {Math.round(item.calories || 0).toLocaleString()} kcal
-                  </div>
-                  <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
-                    ${selectedFoods.has(item.name)
-                      ? 'border-emerald-500 bg-emerald-500'
-                      : 'border-gray-300'}`}
-                  >
-                    {selectedFoods.has(item.name) && (
-                      <i className="fas fa-check text-white text-sm"></i>
-                    )}
-                  </div>
+                ))
+              ) : (
+                <div className="bg-white rounded-2xl p-8 text-center">
+                  <i className="fas fa-search text-5xl text-gray-300 mb-4"></i>
+                  <p className="text-gray-600 font-medium text-lg">인식된 음식이 없습니다.</p>
+                  <p className="text-sm text-gray-500 mt-2">다시 시도해 주세요.</p>
                 </div>
-              </div>
-            ))
-          ) : (
-            <div className="bg-white rounded-2xl p-8 text-center">
-              <i className="fas fa-search text-5xl text-gray-300 mb-4"></i>
-              <p className="text-gray-600 font-medium text-lg">인식된 음식이 없습니다.</p>
-              <p className="text-sm text-gray-500 mt-2">다시 시도해 주세요.</p>
+              )}
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom Navigation */}
+          </div>
+        </>
+      )}
       <BottomNav />
     </div>
   );

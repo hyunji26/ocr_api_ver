@@ -21,43 +21,54 @@ class OCRService:
         # 메뉴 목록 초기화
         self.menu_set = get_menu_dict('app/services/nutrition/data/nutrition_db.csv')
         
-        # # 영문 메뉴 매핑
-        # self.eng_to_kor = {
-        #     "MANDUGUK": "만두국",
-        #     "GALBITUNG": "갈비탕",
-        #     "BIBIMBAP": "비빔밥",
-        #     "KIMCHIJJIGAE": "김치찌개",
-        #     "DOENJANGJJIGAE": "된장찌개",
-        #     "BUDAEJJIGAE": "부대찌개"
-        # }
+        # 영문 메뉴 매핑
+        self.eng_to_kor = {
+            "MANDUGUK": "만두국",
+            "GALBITUNG": "갈비탕",
+            "BIBIMBAP": "비빔밥",
+            "KIMCHIJJIGAE": "김치찌개",
+            "DOENJANGJJIGAE": "된장찌개",
+            "BUDAEJJIGAE": "부대찌개"
+        }
 
+        # 메뉴가 아닌 텍스트 패턴
+        self.non_menu_patterns = [
+            r'^SINCE\s+\d+',  # SINCE 1780 같은 패턴
+            r'^\d{2,}$',      # 숫자만 있는 경우
+            r'^\d{2,3}-?\d{3,4}-?\d{4}$',  # 전화번호
+            r'.*[백반집|식당|레스토랑].*',   # 가게 이름
+            r'^[A-Za-z\s\d]+$',  # 영어로만 된 텍스트
+        ]
+        
         # 자주 발생하는 OCR 오류 수정
         self.common_ocr_errors = {
             "째개": "찌개",
             "찌게": "찌개",
             "덜밥": "덮밥",
-            "방밥": "빔밥",  # 비빔밥 오류 처리
-            "비방": "비빔",  # 비빔밥 오류 처리
-            "공": "콤",      # 매콤한 -> 매공한 오류 처리
-            "른": "큰",      # 얼큰한 -> 얼른한 오류 처리
-            "치키가라아게": "치킨가라아게",  # 치킨가라아게 오류 처리
-            # 한글 자모 혼동 오류 추가
-            "회": "회",      # 육회 -> 육회 (받침 오류)
-            "번": "빔",      # 비빔밥 -> 비번밥 오류
-            "덩": "덮",      # 덮밥 -> 덩밥 오류
-            "멩": "면",      # 라면 -> 라멩 오류
-            "이": "이",      # 비빔 -> 비이 오류
-            "방": "빔",      # 비빔 -> 비방 오류
-            "골": "콜",      # 콜라 -> 골라 오류
-            "멩이": "면",    # 라면 -> 라멩이 오류
-            "비방": "비빔",  # 비빔 -> 비방 오류
-            "번밥": "빔밥",  # 비빔밥 -> 비번밥 오류
-            "덩밥": "덮밥",  # 덮밥 -> 덩밥 오류
-            "회비": "회",    # 육회 -> 육회비 오류
-            "비번": "비빔",  # 비빔 -> 비번 오류
-            "면사리": "면사리",  # 라면사리 보존
-            "라면": "라면",  # 라면 보존
-            "사리": "사리",  # 사리 보존
+            "댐밥": "덮밥",
+            "방밥": "밥",
+            "비방": "비빔",
+            "멩이": "뱅이",
+            "콜면이": "골뱅이",
+            "째": "찌개",     # "부대째" -> "부대찌개"
+            "불고": "불고기",  # "불고 덮밥" -> "불고기덮밥"
+            "비범": "비빔",    # "육회비범밥" -> "육회비빔밥"
+            "뷰음": "볶음",    # "오징어뷰음" -> "오징어볶음"
+            "뒷밥": "덮밥"     # "제육뒷밥" -> "제육덮밥"
+        }
+        
+        # 메뉴 매핑
+        self.menu_mapping = {
+            "부대째": "부대찌개",
+            "김치째개": "김치찌개",
+            "불고기댐밥": "불고기덮밥",
+            "불고기덜밥": "불고기덮밥",
+            "불고 덮밥": "불고기덮밥",
+            "불고기 덮밥": "불고기덮밥",
+            "육회비범밥": "육회비빔밥",
+            "제육뒷밥": "제육덮밥",
+            "오징어뷰음": "오징어볶음",
+            "골멩이비방면": "골뱅이비빔면"
         }
 
         self.modifiers = [
@@ -87,7 +98,8 @@ class OCRService:
             "세트", "정식", "SET", "사이드", "콤보", "런치박스", "A세트", "B세트", "특선", "단품",
 
             # 외국어 표현 (브랜딩 용어)
-            "Best", "Hot", "New", "Premium", "Special", "Deluxe", "Signature", "Chef's", "Real"
+            "Best", "Hot", "New", "Premium", "Special", "Deluxe", "Signature", "Chef's", "Real",
+            "오늘의", "인기", "추천", "best", "new"
         ]
 
         
@@ -129,21 +141,21 @@ class OCRService:
             logger.warning(f"한글 자모 결합 중 오류 발생: {str(e)}")
             return ''.join(decomposed)
 
-    # def _convert_eng_to_kor(self, text):
-    #     """영문 메뉴를 한글로 변환"""
-    #     # 대문자로 변환하고 공백 제거
-    #     text_upper = ''.join(text.upper().split())
+    def _convert_eng_to_kor(self, text):
+        """영문 메뉴를 한글로 변환"""
+        # 대문자로 변환하고 공백 제거
+        text_upper = ''.join(text.upper().split())
         
-    #     # 영문 메뉴 매핑에서 찾기
-    #     if text_upper in self.eng_to_kor:
-    #         return self.eng_to_kor[text_upper]
+        # 영문 메뉴 매핑에서 찾기
+        if text_upper in self.eng_to_kor:
+            return self.eng_to_kor[text_upper]
             
-    #     # 부분 매칭 시도
-    #     for eng, kor in self.eng_to_kor.items():
-    #         if text_upper in eng or eng in text_upper:
-    #             return kor
+        # 부분 매칭 시도
+        for eng, kor in self.eng_to_kor.items():
+            if text_upper in eng or eng in text_upper:
+                return kor
                 
-    #     return text
+        return text
 
     def _find_best_menu_match(self, text):
         """메뉴 사전에서 가장 유사한 메뉴 찾기 (set 기반)"""
@@ -172,69 +184,115 @@ class OCRService:
 
     def _normalize_text(self, text: str) -> str:
         """텍스트 정규화"""
-        # 1. 특수문자 제거 (한글, 영문, 숫자, 공백만 남김)
-        text = re.sub(r'[^ㄱ-ㅎ가-힣a-zA-Z0-9\s]', '', text)
+        # 영어, 한글, 숫자, 공백만 남기고 제거
+        text = re.sub(r'[^가-힣A-Za-z0-9\s]', ' ', text)
         
-        # 2. 숫자와 단위 제거 (예: 258g)
-        text = re.sub(r'\d+[gmkl]+', '', text)
-        text = re.sub(r'\d+', '', text)
-        
-        # 3. OCR 오류 수정
-        for error, correction in self.common_ocr_errors.items():
-            text = text.replace(error, correction)
-        
-        # 4. 여러 공백을 하나의 공백으로
+        # 여러 공백을 하나로
         text = re.sub(r'\s+', ' ', text)
         
-        # 5. 앞뒤 공백 제거
-        return text.strip()
+        # 양쪽 공백 제거
+        return text.strip().lower()  # 소문자로 변환
+
+    def _is_menu_text(self, text: str) -> bool:
+        """메뉴 텍스트인지 확인"""
+        # 메뉴가 아닌 패턴 체크
+        for pattern in self.non_menu_patterns:
+            if re.match(pattern, text, re.IGNORECASE):
+                return False
+        return True
 
     def _remove_modifiers(self, text: str) -> str:
         """수식어 제거"""
-        # 수식어 제거
         for modifier in self.modifiers:
             text = re.sub(rf'\b{modifier}\b', '', text, flags=re.IGNORECASE)
-        
-        # 여러 공백을 하나의 공백으로
-        text = re.sub(r'\s+', ' ', text)
-        return text.strip()
+        return re.sub(r'\s+', ' ', text).strip()
 
-    # def _exact_match_exists(self, text: str) -> Optional[str]:
-    #     """메뉴 목록에서 정확히 일치하는 메뉴 찾기"""
-    #     if text in self.menu_set:
-    #         return text
-    #     return None
-
-    # def _contains_menu(self, text: str) -> Optional[str]:
-    #     """텍스트에 포함된 메뉴 찾기"""
-    #     # 가장 긴 메뉴부터 확인 (예: "김치찌개" vs "찌개")
-    #     sorted_menus = sorted(self.menu_set, key=len, reverse=True)
-        
-    #     # 1. 정확한 포함 관계 확인
-    #     for menu in sorted_menus:
-    #         if menu in text:
-    #             return menu
-        
-    #     # 2. 수식어 제거 후 포함 관계 확인
-    #     # 수식어 목록
-    #     modifiers = ["수제", "마약", "특제", "프리미엄", "신메뉴", "NEW", "베스트", "인기", "추천"]
-        
-    #     for modifier in modifiers:
-    #         if modifier in text:
-    #             # 수식어 제거 후 메뉴 찾기
-    #             clean_text = text.replace(modifier, "").strip()
-    #             for menu in sorted_menus:
-    #                 if menu in clean_text or clean_text in menu:
-    #                     return menu
-        
-    #     # 3. 공백 제거 후 포함 관계 확인
-    #     clean_text = text.replace(" ", "")
-    #     for menu in sorted_menus:
-    #         clean_menu = menu.replace(" ", "")
-    #         if clean_menu in clean_text or clean_text in clean_menu:
-    #             return menu
-                
-    #     return None
+    def _clean_and_normalize_text(self, text: str) -> str:
+        """텍스트 정제 및 정규화"""
+        try:
+            # 기본 정제
+            cleaned = text.strip()
+            
+            # 공백 정규화 (연속된 공백을 하나로)
+            cleaned = re.sub(r'\s+', ' ', cleaned)
+            
+            # OCR 오류 수정
+            ocr_corrections = {
+                "뷰음": "볶음",
+                "째개": "찌개",
+                "찌게": "찌개",
+                "덜밥": "덮밥",
+                "뒷밥": "덮밥",
+                "비방": "비빔",
+                "멩이": "뱅이",
+                "콜면이": "골뱅이"
+            }
+            
+            for error, correction in ocr_corrections.items():
+                cleaned = cleaned.replace(error, correction)
+            
+            # 수량 정보 제거
+            quantity_patterns = [
+                r'\s*\(\s*\d+\s*인분?\s*\)\s*',  # (2인분)
+                r'\s*\(\s*\d+\s*인이상\s*\)\s*',  # (2인이상)
+                r'\s*\(\s*\d+\s*인\s*\)\s*',  # (2인)
+                r'\s*\d+\s*인분\s*',  # 2인분
+                r'\s*\d+\s*인이상\s*',  # 2인이상
+                r'\s*\d+\s*인\s*',  # 2인
+                r'\s*\(\s*추천\s*\d+\s*인분?\s*\)\s*',  # (추천2인분)
+                r'\s*\(\s*추천\s*\d+\s*인\s*\)\s*'  # (추천2인)
+            ]
+            
+            for pattern in quantity_patterns:
+                cleaned = re.sub(pattern, '', cleaned)
+            
+            # 메뉴 단어 병합 패턴
+            merge_patterns = {
+                r'냉\s+면': '냉면',
+                r'비빔\s+냉면': '비빔냉면',
+                r'물\s+냉면': '물냉면',
+                r'공\s+기\s+밥': '공기밥',
+                r'김치\s+찌개': '김치찌개',
+                r'된장\s+찌개': '된장찌개',
+                r'순두부\s+찌개': '순두부찌개',
+                r'부대\s+찌개': '부대찌개',
+                r'오징어\s+볶음': '오징어볶음',
+                r'돼지\s+김치찌개': '돼지김치찌개',
+                r'참치\s+순두부찌개': '참치순두부찌개'
+            }
+            
+            # 메뉴 단어 병합
+            for pattern, replacement in merge_patterns.items():
+                cleaned = re.sub(pattern, replacement, cleaned)
+            
+            # 불필요한 텍스트 제거 패턴
+            remove_patterns = [
+                r'\s*공기밥\s*별도\s*',
+                r'\s*밥\s*별도\s*',
+                r'\s*추가\s*',
+                r'\s*선택\s*',
+                r'\s*세트\s*',
+                r'\s*포장\s*',
+                r'\s*\(\s*공기밥\s*별도\s*\)\s*',
+                r'\s*\(\s*밥\s*별도\s*\)\s*'
+            ]
+            
+            # 불필요한 텍스트 제거
+            for pattern in remove_patterns:
+                cleaned = re.sub(pattern, '', cleaned)
+            
+            # 최종 공백 정리
+            cleaned = cleaned.strip()
+            
+            # 디버깅을 위한 로그
+            if cleaned != text:
+                logger.debug(f"텍스트 정제: '{text}' -> '{cleaned}'")
+            
+            return cleaned
+            
+        except Exception as e:
+            logger.error(f"텍스트 정제 중 오류 발생: {str(e)}")
+            return text
 
     def _calculate_levenshtein_distance(self, s1: str, s2: str) -> int:
         """레벤슈타인 거리 계산 (Java 코드 참고)"""
@@ -455,50 +513,52 @@ class OCRService:
             return None
 
     async def extract_text(self, image_bytes: bytes) -> List[dict]:
+        """이미지에서 텍스트 추출"""
         try:
-            logger.info("이미지 처리 시작")
-            
-            # 바이트 데이터를 PIL Image로 변환
+            # 이미지 바이트를 PIL Image로 변환
             image = Image.open(io.BytesIO(image_bytes))
             
-            # 원본 이미지로 OCR 시도
-            image_np = np.array(image)
-            logger.info("원본 이미지로 OCR 시도")
-            results = self.reader.readtext(image_np)
-            logger.info(f"원본 이미지 OCR 결과 수: {len(results)}")
+            # 이미지 전처리
+            processed_image = self._preprocess_image(image)
             
-            # 결과가 없는 경우
-            if not results:
-                logger.info("텍스트가 발견되지 않았습니다.")
-                return []
+            # OCR 수행
+            result = self.reader.readtext(np.array(processed_image))
             
-            # 모든 텍스트와 신뢰도 추출
-            extracted_results = []
-            for bbox, text, confidence in results:
-                # 한글과 숫자, 공백만 포함된 텍스트 허용 (영어 제외)
-                if re.match(r'^[가-힣0-9\s]+$', text.strip()):
-                    # 가격 정보는 제외
-                    if re.match(r'^\d+,?\d*원?$', text.strip()):
-                        continue
-
-                    # 텍스트 정규화
-                    normalized_text = self._normalize_text(text)
-                    
-                    # 빈 문자열이 되면 건너뛰기
-                    if not normalized_text:
-                        continue
-
-                    extracted_results.append({
-                        "original_text": text.strip(),
-                        "text": normalized_text,
-                        "confidence": round(float(confidence), 2)
-                    })
+            # 결과 정제
+            extracted_texts = []
+            logger.info(f"원본 이미지 OCR 결과 수: {len(result)}")
             
-            # 결과 반환 전에 모든 추출된 텍스트를 로그에 출력
-            for result in extracted_results:
-                logger.info(f"원본 텍스트: {result['original_text']} -> 정제된 텍스트: {result['text']} (신뢰도: {result['confidence']:.2f})")
+            for bbox, text, confidence in result:
+                # bbox 좌표를 float로 변환
+                bbox = [[float(coord) for coord in point] for point in bbox]
+                
+                # 텍스트 정제
+                normalized = self._normalize_text(text)
+                
+                # 메뉴가 아닌 텍스트는 제외
+                if not self._is_menu_text(normalized):
+                    logger.info(f"메뉴가 아닌 텍스트로 제외: {text}")
+                    continue
+                
+                # 정제된 텍스트
+                cleaned = self._clean_and_normalize_text(text)
+                
+                if cleaned:  # 빈 문자열이 아닌 경우만 추가
+                    # 최종 결과에서 수식어가 포함된 경우 다시 한 번 제거
+                    final_text = self._remove_modifiers(cleaned)
+                    if final_text:  # 수식어 제거 후에도 텍스트가 남아있는 경우만 추가
+                        extracted_texts.append({
+                            "text": final_text,
+                            "confidence": confidence,
+                            "bbox": bbox
+                        })
+                        logger.info(f"원본 텍스트: {text} -> 정제된 텍스트: {final_text} (신뢰도: {confidence:.2f})")
+                    else:
+                        logger.info(f"수식어 제거 후 빈 텍스트: {text}")
+                else:
+                    logger.info(f"제외된 텍스트: {text} (신뢰도: {confidence:.2f})")
             
-            return extracted_results
+            return extracted_texts
             
         except Exception as e:
             logger.error(f"텍스트 추출 중 오류 발생: {str(e)}")
@@ -517,8 +577,9 @@ class OCRService:
             logger.info(f"원본 이미지 OCR 결과 수: {len(results)}")
             
             # 추출된 텍스트 목록
-            extracted_texts = [result[1] for result in results]
-            logger.info(f"최종 OCR 결과 수: {len(extracted_texts)}")
+            extracted_texts = []
+            for bbox, text, conf in results:
+                extracted_texts.append(text)
             
             # 메뉴 추출 및 중복 제거
             menus = []

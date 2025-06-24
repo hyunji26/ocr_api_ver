@@ -18,9 +18,7 @@ const ProfilePage = () => {
   });
 
   const [settings, setSettings] = useState({
-    dailyCalorieGoal: 0,
-    notifications: true,
-    darkMode: false
+    dailyCalorieGoal: 0
   });
 
   const [userProfile, setUserProfile] = useState({
@@ -394,33 +392,6 @@ const ProfilePage = () => {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">권장 칼로리: 2000kcal</p>
-        </div>
-
-        <div className="flex items-center justify-between py-3 border-t border-gray-100">
-          <span className="text-gray-700">알림 설정</span>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={settings.notifications}
-              onChange={(e) => setSettings({...settings, notifications: e.target.checked})}
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-          </label>
-        </div>
-        <p className="text-xs text-gray-500 ml-1">식사 시간 알림을 받습니다</p>
-
-        <div className="flex items-center justify-between py-3 border-t border-gray-100">
-          <span className="text-gray-700">다크 모드</span>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={settings.darkMode}
-              onChange={(e) => setSettings({...settings, darkMode: e.target.checked})}
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-          </label>
         </div>
       </div>
 

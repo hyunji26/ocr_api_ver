@@ -139,6 +139,12 @@ const MainPage = () => {
       setLoading(prev => ({ ...prev, [mealType]: true }));
       console.log('파일 선택됨:', file.name);
 
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
       const formData = new FormData();
       formData.append('file', file);
 
@@ -146,10 +152,18 @@ const MainPage = () => {
       const response = await fetch(`${API_BASE_URL}/api/v1/food/analyze`, {
         method: 'POST',
         headers: {
-          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: formData,
       });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          navigate('/login');
+          return;
+        }
+        throw new Error(`API Error: ${response.status}`);
+      }
 
       const data = await response.json();
       console.log('API 응답 결과:', data);

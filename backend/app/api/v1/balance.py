@@ -8,6 +8,7 @@ from sqlalchemy import select, func
 import logging
 from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
+from jwt import PyJWT
 
 from app.database import get_db
 from app.models.balance import Meal, User
@@ -27,6 +28,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/balance", tags=["Balance"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/balance/token")
+
+jwt = PyJWT()
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -209,12 +212,13 @@ async def get_meals(
     try:
         # 날짜가 제공되지 않으면 오늘 날짜 사용
         if date:
-            target_date = datetime.strptime(date, "%Y-%m-%d").date()
+            target_date = datetime.strptime(date, "%Y-%m-%d")
         else:
-            target_date = datetime.now().date()
+            target_date = datetime.now()
 
-        start_of_day = datetime.combine(target_date, datetime.min.time())
-        end_of_day = datetime.combine(target_date, datetime.max.time())
+        # 해당 날짜의 시작(00:00:00)과 끝(23:59:59) 설정
+        start_of_day = datetime(target_date.year, target_date.month, target_date.day, 0, 0, 0)
+        end_of_day = datetime(target_date.year, target_date.month, target_date.day, 23, 59, 59)
 
         # 해당 날짜의 모든 식사 기록 조회
         meals = db.query(Meal).filter(
@@ -234,6 +238,7 @@ async def get_meals(
             meal_type = meal.meal_type.lower()
             if meal_type in meal_groups:
                 meal_groups[meal_type].append({
+                    'id': meal.id,
                     'name': meal.food_name or '식사',
                     'calories': float(str(meal.calories or 0)),
                     'nutrients': {
@@ -372,3 +377,61 @@ async def update_user_profile(
     db.commit()
     db.refresh(current_user)
     return current_user 
+
+@router.get("/meals/{meal_id}")
+async def get_meal(
+    meal_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """특정 식사 기록을 조회합니다."""
+    try:
+        meal = db.query(Meal).filter(
+            Meal.id == meal_id,
+            Meal.user_id == current_user.id
+        ).first()
+        
+        if not meal:
+            raise HTTPException(status_code=404, detail="Meal not found")
+            
+        return {
+            "food_name": meal.food_name,
+            "calories": float(str(meal.calories or 0)),
+            "meal_type": meal.meal_type,
+            "nutrients": {
+                "carbohydrates": float(str(meal.carbohydrates or 0)),
+                "protein": float(str(meal.protein or 0)),
+                "fat": float(str(meal.fat or 0))
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/meals/{meal_id}")
+async def update_meal(
+    meal_id: int,
+    meal: MealCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """특정 식사 기록을 수정합니다."""
+    try:
+        db_meal = db.query(Meal).filter(
+            Meal.id == meal_id,
+            Meal.user_id == current_user.id
+        ).first()
+        
+        if not db_meal:
+            raise HTTPException(status_code=404, detail="Meal not found")
+            
+        # 식사 정보 업데이트
+        for field in ['food_name', 'calories', 'carbohydrates', 'protein', 'fat', 'meal_type']:
+            setattr(db_meal, field, getattr(meal, field))
+        
+        db.commit()
+        db.refresh(db_meal)
+        
+        return {"message": "Meal updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e)) 

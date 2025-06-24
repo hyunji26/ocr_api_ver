@@ -70,7 +70,8 @@ const OcrResultPage = () => {
   const processResults = () => {
     const data = location.state?.results;
     if (!data) return [];
-    return data.found_foods || [];
+    // 영양 정보가 있는 메뉴만 필터링 (calories가 0인 경우는 영양 정보가 없는 경우)
+    return Array.isArray(data) ? data.filter(item => item.calories > 0) : [];
   };
 
   const results = processResults();
@@ -85,7 +86,7 @@ const OcrResultPage = () => {
   const getTotalNutrition = () => {
     const selectedNutrition = results.reduce((acc, item) => {
       if (!selectedFoods.has(item.name)) return acc;
-      const nutrition = item.nutrition_info || {};
+      const nutrition = item.nutrition_info || item; // nutrition_info가 없으면 item 자체를 사용
       const nutrients = nutrition.nutrients || {};
       return {
         calories: parseFloat(acc.calories || 0) + parseFloat(nutrition.calories || 0),
@@ -297,17 +298,17 @@ const OcrResultPage = () => {
                     <h3 className="font-medium text-gray-800 mb-1">{item.name || '알 수 없음'}</h3>
                     <div className="text-sm text-gray-500">
                       <div className="flex items-center gap-2">
-                        <span>탄수화물 {formatNumber(item.nutrition_info?.nutrients?.carbohydrates)}g</span>
+                        <span>탄수화물 {formatNumber(item.nutrients?.carbohydrates)}g</span>
                         <span>•</span>
-                        <span>단백질 {formatNumber(item.nutrition_info?.nutrients?.protein)}g</span>
+                        <span>단백질 {formatNumber(item.nutrients?.protein)}g</span>
                       </div>
                       <div className="mt-1">
-                        <span>지방 {formatNumber(item.nutrition_info?.nutrients?.fat)}g</span>
+                        <span>지방 {formatNumber(item.nutrients?.fat)}g</span>
                       </div>
                     </div>
                   </div>
                   <div className="text-emerald-500 font-medium">
-                    {Math.round(item.nutrition_info?.calories || 0).toLocaleString()} kcal
+                    {Math.round(item.calories || 0).toLocaleString()} kcal
                   </div>
                   <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
                     ${selectedFoods.has(item.name)

@@ -63,15 +63,30 @@ class MenuDictGenerator:
         
         # 기본 메뉴명 패턴
         basic_patterns = [
+            # 한식
+            "비빔밥", "김치찌개", "된장찌개", "갈비탕", "만두국", "육회비빔밥",
+            "제육덮밥", "오징어볶음", "돼지김치찌개", "참치순두부찌개", "부대찌개",
+            "골뱅이비빔면", "라면", "라면사리",
+            
+            # 일반 메뉴
             "돈까스", "치킨가라아게", "소세지", "피자", "햄버거", "샌드위치",
-            "김치찌개", "된장찌개", "갈비탕", "만두국", "비빔밥", "불고기",
-            "닭볶음탕", "해물탕", "감자튀김", "치킨", "스테이크", "파스타"
+            "불고기", "닭볶음탕", "해물탕", "감자튀김", "치킨", "스테이크", "파스타",
+            
+            # 기본 메뉴 구성요소
+            "비빔", "덮밥", "볶음", "찌개", "탕", "국", "밥", "면"
         ]
         
+        # 기본 메뉴 추가
+        basic_menus.update(basic_patterns)
+        
+        # 복합 메뉴에서 기본 메뉴 추출
         for menu in menu_set:
             for pattern in basic_patterns:
                 if pattern in menu:
                     basic_menus.add(pattern)
+                    # 복합 메뉴도 추가
+                    if len(menu.split()) > 1:
+                        basic_menus.add(menu)
         
         return basic_menus
 

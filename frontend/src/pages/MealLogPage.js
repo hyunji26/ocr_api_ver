@@ -28,7 +28,8 @@ const MealLogPage = () => {
         }
 
         // 식사 기록 가져오기
-        const mealsResponse = await fetch(`${API_BASE_URL}/api/v1/balance/meals`, {
+        const formattedDate = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+        const mealsResponse = await fetch(`${API_BASE_URL}/api/v1/balance/meals?date=${formattedDate}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -51,6 +52,7 @@ const MealLogPage = () => {
               type: type.charAt(0).toUpperCase() + type.slice(1),
               time: type === 'breakfast' ? '아침' : type === 'lunch' ? '점심' : '저녁',
               foods: foods.map(food => ({
+                id: food.id,
                 name: food.name,
                 calories: food.calories,
                 nutrients: {
@@ -78,14 +80,19 @@ const MealLogPage = () => {
     const newDate = new Date(selectedDate);
     newDate.setDate(selectedDate.getDate() + offset);
     setSelectedDate(newDate);
+    // 스크롤을 즉시 맨 위로 이동
+    window.scrollTo(0, 0);
   };
 
   const handleAddMeal = () => {
     setShowAddModal(true);
   };
 
-  const MealCard = ({ food, mealType, mealTime }) => (
-    <div className="bg-white bg-opacity-20 backdrop-blur-lg rounded-xl p-4 mb-4">
+  const MealCard = ({ food, mealType, mealTime, mealId }) => (
+    <div 
+      className="bg-white bg-opacity-20 backdrop-blur-lg rounded-xl p-4 mb-4 cursor-pointer hover:bg-opacity-30 transition-all"
+      onClick={() => navigate(`/edit-meal/${mealId}`)}
+    >
       <div className="flex justify-between items-start mb-3">
         <div>
           <div className="flex items-center">
@@ -163,6 +170,7 @@ const MealLogPage = () => {
                 food={food}
                 mealType={meal.type}
                 mealTime={meal.time}
+                mealId={food.id}
               />
             ))
           ))}

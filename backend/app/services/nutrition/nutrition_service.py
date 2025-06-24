@@ -4,11 +4,26 @@ import logging
 import aiohttp
 import ssl
 from typing import Dict, Optional
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
 class NutritionService:
     def __init__(self):
+        """영양 정보 서비스 초기화"""
+        try:
+            # CSV 파일 경로
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            csv_path = os.path.join(current_dir, 'data', 'nutrition_db.csv')
+            
+            # CSV 파일 읽기
+            self.nutrition_db = pd.read_csv(csv_path)
+            logger.info(f"영양 정보 DB 로드 완료: {len(self.nutrition_db)} 개의 메뉴")
+            
+        except Exception as e:
+            logger.error(f"영양 정보 DB 로드 중 오류 발생: {str(e)}")
+            self.nutrition_db = pd.DataFrame()  # 빈 DataFrame으로 초기화
+
         logger.info("영양 정보 서비스 초기화")
         # API 키는 이미 인코딩되어 있으므로 그대로 사용
         self.api_key = 'DikYPQYEtB2A%2BwML43XYgXpRPMp06zngL5Yq5P8VlVfFKY9g46988MjMoeyrex0s876GbTbBGWDZzJQPT5aCEg%3D%3D'
@@ -68,56 +83,107 @@ class NutritionService:
 
     def _clean_food_name(self, food_name: str) -> str:
         """검색을 위해 음식 이름을 정제합니다."""
-        # 특수문자 및 공백 처리
-        cleaned = re.sub(r'[^\w\s가-힣]', ' ', food_name)
+        # 원본 텍스트 보존
+        original = food_name
+        
+        # 특수문자 및 공백 처리 (괄호는 유지)
+        cleaned = food_name.strip()
+        
+        # 수량 정보 제거 (예: "2인분", "2인이상" 등)
+        cleaned = re.sub(r'\s*\d+인(?:분|이상|)?\s*', '', cleaned)
+        
+        # 메뉴 단어 병합 패턴
+        merge_patterns = {
+            r'냉\s+면': '냉면',
+            r'비빔\s+냉면': '비빔냉면',
+            r'물\s+냉면': '물냉면',
+            r'공\s+기\s+밥': '공기밥',
+            r'김치\s+찌개': '김치찌개',
+            r'된장\s+찌개': '된장찌개',
+            r'순두부\s+찌개': '순두부찌개',
+            r'부대\s+찌개': '부대찌개'
+        }
+        
+        # 메뉴 단어 병합
+        for pattern, replacement in merge_patterns.items():
+            cleaned = re.sub(pattern, replacement, cleaned)
+        
+        # 불필요한 텍스트만 제거 (괄호는 유지)
+        remove_texts = [
+            '공기밥별도',
+            '밥별도',
+            '추가',
+            '선택',
+            '포장'
+        ]
+        
+        # 불필요한 텍스트 제거 (괄호 내부 텍스트만)
+        for text in remove_texts:
+            # 괄호 안의 텍스트 제거
+            cleaned = re.sub(f'\\({text}\\)', '()', cleaned)
+            # 일반 텍스트 제거
+            cleaned = re.sub(f'\\s*{text}\\s*', '', cleaned)
+        
+        # 빈 괄호 제거
+        cleaned = re.sub(r'\(\s*\)', '', cleaned)
+        
+        # 메뉴 수식어 패턴
+        modifiers = [
+            "매름한", "매운", "달콤한", "달콤", "얼큰한", "얼큰", "맵고", "맛있는",
+            "고소한", "신선한", "따뜻한", "따듯한", "차가운", "시원한", "짭짤한",
+            "진한", "깔끔한", "풍미가득", "향긋한", "담백한", "부드러운",
+            "특제", "특별한", "새로운", "인기", "최고", "추천", "모듬", "정통",
+            "정성껏", "프리미엄", "수제", "장인의", "명품", "오리지널",
+            "즉석", "직화", "바로", "얼른한", "촉촉한", "쫄깃한", "담백한",
+            "깔끔한", "가성비", "고퀄리티", "재방문", "베스트"
+        ]
         
         # 수식어 제거
-        modifiers = [
-            "수제", "마약", "특제", "프리미엄", "신메뉴", "NEW", "베스트", "인기", "추천",
-            "매운", "매움", "특별", "정성껏", "장인의", "명품", "정통", "오리지널"
-        ]
         for modifier in modifiers:
-            cleaned = cleaned.replace(modifier, "")
+            cleaned = re.sub(f'{modifier}\s*', '', cleaned)
         
         # OCR 오류 수정
         ocr_errors = {
             "치키가라아게": "치킨가라아게",
             "째개": "찌개",
-            "찌게": "찌개"
+            "찌게": "찌개",
+            "비범": "비빔",
+            "뷰음": "볶음",
+            "뒷밥": "덮밥",
+            "육회비범밥": "육회비빔밥",
+            "제육뒷밥": "제육덮밥",
+            "오징어뷰음": "오징어볶음",
+            "골멩이비방면": "골뱅이비빔면",
+            "물냄면": "물냉면",
+            "냄면": "냉면",
+            "냄": "냉"
         }
         for error, correction in ocr_errors.items():
             cleaned = cleaned.replace(error, correction)
         
-        # 여러 공백을 하나의 공백으로
+        # 연속된 공백 제거
         cleaned = re.sub(r'\s+', ' ', cleaned)
-        return cleaned.strip()
+        cleaned = cleaned.strip()
+        
+        # 정제된 텍스트가 너무 짧거나 원본과 많이 다르면 원본 반환
+        if len(cleaned) < 2 or (len(original) > 4 and len(cleaned) < len(original) * 0.5):
+            return original
+            
+        return cleaned
 
     async def extract_nutrition_info(self, food_name: str, confidence: float = 1.0) -> Dict:
-        """
-        음식 이름으로 영양 정보를 검색합니다.
-        
-        Args:
-            food_name (str): OCR로 추출한 음식 이름
-            confidence (float): OCR 신뢰도 점수
-            
-        Returns:
-            Dict: 영양 정보 (칼로리, 탄수화물, 단백질, 지방)
-        """
+        """음식 이름으로 영양 정보를 검색합니다."""
         try:
-            # 음식 이름 정제
+            # 음식 이름 정제 (수량 정보 제거)
             cleaned_name = self._clean_food_name(food_name)
             logger.info(f"정제된 음식 이름: {cleaned_name} (원본: {food_name})")
             
             # 식약처 API로 검색
             result = await self._search_food(cleaned_name)
             
-            if not result:
-                # 정제된 이름으로 검색 실패시 원본 이름으로 재시도
-                result = await self._search_food(food_name)
-            
             if result:
                 nutrition_info = {
-                    "name": result.get('FOOD_NM_KR', 'N/A'),  # 식품명 추가
+                    "name": cleaned_name,  # 정제된 메뉴명 사용
                     "calories": float(result.get('AMT_NUM1', 0)),  # 열량 (kcal)
                     "nutrients": {
                         "carbohydrates": float(result.get('AMT_NUM6', 0)),  # 탄수화물 (g)
@@ -138,11 +204,125 @@ class NutritionService:
     def get_empty_nutrition(self) -> Dict:
         """빈 영양 정보를 반환합니다."""
         return {
-            "name": "N/A",  # 식품명 필드 추가
-            "calories": 0,
-            "nutrients": {
-                "carbohydrates": 0,
-                "protein": 0,
-                "fat": 0
+            'name': '',  # 빈 문자열로 설정하여 UI에서 표시되지 않도록 함
+            'calories': 0,
+            'nutrients': {
+                'carbohydrates': 0,
+                'protein': 0,
+                'fat': 0
+            }
+        }
+
+    def _find_food_info(self, menu_name: str) -> Optional[Dict]:
+        """메뉴의 영양 정보를 찾음"""
+        try:
+            # 정제된 메뉴명으로 검색
+            cleaned_name = self._clean_menu_name(menu_name)
+            logger.info(f"정제된 음식 이름: {cleaned_name} ( 원본: {menu_name})")
+
+            # 정확한 매칭 시도
+            exact_match = self.nutrition_db[self.nutrition_db['name'] == cleaned_name]
+            if not exact_match.empty:
+                food_info = exact_match.iloc[0]
+                logger.info(f"찾은 음식 (정확한 매칭): {food_info['name']}")
+                return self._create_nutrition_info(food_info)
+
+            # 부분 문자열 매칭 시도 (정확도 순으로 정렬)
+            partial_matches = []
+            for _, food in self.nutrition_db.iterrows():
+                food_name = str(food['name'])
+                # 메뉴명이 서로 포함 관계인 경우만 검사
+                if cleaned_name in food_name or food_name in cleaned_name:
+                    # 레벤슈타인 거리 계산
+                    distance = self._calculate_levenshtein_distance(cleaned_name, food_name)
+                    # 더 짧은 문자열 길이로 정규화
+                    normalized_distance = distance / min(len(cleaned_name), len(food_name))
+                    
+                    # 메뉴명 길이 차이 계산
+                    length_diff = abs(len(cleaned_name) - len(food_name))
+                    length_ratio = length_diff / min(len(cleaned_name), len(food_name))
+                    
+                    # 종합 점수 계산 (거리와 길이 차이를 모두 고려)
+                    score = normalized_distance + length_ratio
+                    
+                    partial_matches.append((food, score))
+
+            if partial_matches:
+                # 점수가 가장 낮은 것 선택 (가장 유사한 것)
+                partial_matches.sort(key=lambda x: x[1])
+                best_match = partial_matches[0][0]
+                best_score = partial_matches[0][1]
+                
+                # 점수가 임계값보다 작은 경우에만 매칭 허용
+                if best_score <= 0.5:  # 50% 이상 다르면 매칭하지 않음
+                    logger.info(f"찾은 음식 (부분 매칭): {best_match['name']} (유사도 점수: {best_score:.2f})")
+                    return self._create_nutrition_info(best_match)
+                else:
+                    logger.info(f"유사도가 너무 낮아서 매칭하지 않음: {best_match['name']} (점수: {best_score:.2f})")
+                    return None
+
+            logger.info(f"'{cleaned_name}'에 대한 영양 정보를 찾을 수 없음")
+            return None
+
+        except Exception as e:
+            logger.error(f"영양 정보 검색 중 오류 발생: {str(e)}")
+            return None
+
+    def _calculate_levenshtein_distance(self, s1: str, s2: str) -> int:
+        """레벤슈타인 거리 계산"""
+        if len(s1) < len(s2):
+            return self._calculate_levenshtein_distance(s2, s1)
+
+        if len(s2) == 0:
+            return len(s1)
+
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+
+        return previous_row[-1]
+
+    def _clean_menu_name(self, menu_name: str) -> str:
+        """메뉴명 정제"""
+        # 기본 정제
+        cleaned = menu_name.strip()
+        
+        # 공백 정규화
+        cleaned = re.sub(r'\s+', ' ', cleaned)
+        
+        # 메뉴 단어 병합
+        merge_patterns = {
+            r'순두부\s+찌개': '순두부찌개',
+            r'김치\s+찌개': '김치찌개',
+            r'된장\s+찌개': '된장찌개',
+            r'부대\s+찌개': '부대찌개',
+            r'참치\s+순두부찌개': '참치순두부찌개',
+            r'돼지\s+김치찌개': '돼지김치찌개',
+            r'제육\s+덮밥': '제육덮밥',
+            r'비빔\s+냉면': '비빔냉면',
+            r'물\s+냉면': '물냉면',
+            r'오징어\s+볶음': '오징어볶음'
+        }
+        
+        for pattern, replacement in merge_patterns.items():
+            cleaned = re.sub(pattern, replacement, cleaned)
+        
+        return cleaned.strip()
+
+    def _create_nutrition_info(self, food_info: pd.Series) -> Dict:
+        """영양 정보 딕셔너리 생성"""
+        return {
+            'name': food_info['name'],
+            'calories': float(food_info['calories']),
+            'nutrients': {
+                'carbohydrates': float(food_info['carbohydrates']),
+                'protein': float(food_info['protein']),
+                'fat': float(food_info['fat'])
             }
         }

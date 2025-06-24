@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
 import MainPage from './pages/MainPage';
-import OcrResultPage from './pages/OcrResultPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import MealLogPage from './pages/MealLogPage';
-import CalendarPage from './pages/CalendarPage';
+import OcrResultPage from './pages/OcrResultPage';
 import ManualMealPage from './pages/ManualMealPage';
 
 const PrivateRoute = ({ children }) => {
@@ -46,9 +45,21 @@ const PublicRoute = ({ children }) => {
   return children;
 };
 
+// 스크롤 처리를 위한 컴포넌트
+function ScrollToTop() {
+  const location = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <ScrollToTop />
       <Routes>
         {/* 공개 라우트 */}
         <Route
@@ -98,14 +109,6 @@ function App() {
           element={
             <PrivateRoute>
               <MealLogPage />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/calendar"
-          element={
-            <PrivateRoute>
-              <CalendarPage />
             </PrivateRoute>
           }
         />

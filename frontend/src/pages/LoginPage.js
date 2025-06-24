@@ -31,7 +31,7 @@ const LoginPage = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || '로그인에 실패했습니다.');
+        throw new Error('이메일/비밀번호를 다시 입력해주세요.');
       }
 
       localStorage.setItem('token', data.access_token);
@@ -39,6 +39,8 @@ const LoginPage = () => {
       navigate('/');
     } catch (error) {
       setError(error.message);
+      // 입력 필드 초기화
+      setPassword('');
     } finally {
       setIsLoading(false);
     }
@@ -101,7 +103,7 @@ const LoginPage = () => {
                 {error}
               </div>
             )}
-            {/* ㄴㄴㄴㄴㄴ */}
+
             <div>
               <button
                 type="submit"

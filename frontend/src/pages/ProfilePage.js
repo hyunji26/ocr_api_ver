@@ -9,6 +9,7 @@ const ProfilePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const fileInputRef = useRef(null);
+  const [error, setError] = useState(null);
 
   const [userStats, setUserStats] = useState({
     weeklyAvgBalance: 0,
@@ -43,27 +44,35 @@ const ProfilePage = () => {
     const fetchUserProfile = async () => {
       try {
         const token = localStorage.getItem('token');
+        console.log("저장된 토큰:", token ? "있음" : "없음");
+        
         if (!token) {
-          navigate('/login');
+          console.error("토큰이 없습니다.");
           return;
         }
 
         const userResponse = await fetch(`${API_BASE_URL}/api/v1/balance/users/profile`, {
+          method: 'GET',
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          credentials: 'include'
         });
 
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          setUserProfile(prev => ({
-            ...prev,
-            name: userData.name,  // 회원가입 시 입력한 이름을 그대로 사용
-            email: userData.email
-          }));
+        if (!userResponse.ok) {
+          const errorText = await userResponse.text();
+          console.error(`API 응답 에러 (${userResponse.status}):`, errorText);
+          throw new Error(`API 요청 실패: ${userResponse.status} ${errorText}`);
         }
+
+        const userData = await userResponse.json();
+        console.log("받은 사용자 데이터:", userData);
+        setUserProfile(userData);
       } catch (error) {
-        console.error('Failed to fetch user profile:', error);
+        console.error("프로필 조회 실패:", error);
+        setError(error.message);
       }
     };
 
@@ -297,6 +306,22 @@ const ProfilePage = () => {
 
   return (
     <div className="min-h-screen bg-emerald-400 text-gray-800 flex flex-col">
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 mx-4 mt-4" role="alert">
+          <strong className="font-bold">오류 발생! </strong>
+          <span className="block sm:inline">{error}</span>
+          <button 
+            className="absolute top-0 right-0 px-4 py-3"
+            onClick={() => setError(null)}
+          >
+            <span className="sr-only">닫기</span>
+            <svg className="h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <title>닫기</title>
+              <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+            </svg>
+          </button>
+        </div>
+      )}
       {/* Header */}
       <header className="p-4 flex justify-between items-center">
         <h1 className="text-xl font-bold">프로필</h1>

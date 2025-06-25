@@ -13,8 +13,10 @@ import pytz
 
 from app.database import get_db
 from app.models.balance import Meal, User
+from app.models import balance as models
 from app.services.balance.balance_service import BalanceService
 from app.schemas.balance import MealCreate, BalanceResponse, UserCreate, Token, BalanceCreate, Balance, DailyBalance, UserProfile, UserProfileUpdate, UserLogin
+from app.schemas import user as schemas
 
 # 로거 설정
 logger = logging.getLogger(__name__)
@@ -50,19 +52,27 @@ def create_access_token(data: dict):
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
+        logger.info(f"토큰 검증 시작: {token[:10]}...")
         payload = decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        logger.info(f"토큰 페이로드: {payload}")
         user_id: Union[str, int] = payload.get("sub")
         if user_id is None:
+            logger.error("토큰에 user_id(sub) 없음")
             raise HTTPException(status_code=401, detail="Invalid authentication credentials")
         user_id = int(user_id)
-    except ValueError:
+        logger.info(f"사용자 ID: {user_id}")
+    except ValueError as ve:
+        logger.error(f"user_id 변환 오류: {str(ve)}")
         raise HTTPException(status_code=401, detail="Invalid user ID format")
-    except Exception:
+    except Exception as e:
+        logger.error(f"토큰 검증 중 오류 발생: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid authentication credentials")
     
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        logger.error(f"사용자를 찾을 수 없음: ID {user_id}")
         raise HTTPException(status_code=404, detail="User not found")
+    logger.info(f"사용자 찾음: ID {user_id}, 이름: {user.name}")
     return user
 
 @router.post("/token", response_model=Token)
@@ -72,7 +82,7 @@ async def login_for_access_token(user_data: UserLogin, db: Session = Depends(get
         logger.info(f"로그인 시도: {user_data.email}")
         user = db.query(User).filter(User.email == user_data.email).first()
         
-        if not user or not verify_password(user_data.password, user.password_hash):
+        if user is None or verify_password(user_data.password, user.password_hash) is False:
             raise HTTPException(
                 status_code=401,
                 detail="이메일 또는 비밀번호가 올바르지 않습니다."
@@ -249,7 +259,8 @@ async def get_meals(
                         'carbohydrates': float(str(meal.carbohydrates or 0)),
                         'protein': float(str(meal.protein or 0)),
                         'fat': float(str(meal.fat or 0))
-                    }
+                    },
+                    'timestamp': meal.timestamp.isoformat() if meal.timestamp else None
                 })
 
         return meal_groups
@@ -374,13 +385,30 @@ async def update_calorie_goal(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/users/profile", response_model=UserProfile)
+@router.get("/users/profile", response_model=schemas.User)
 async def get_user_profile(
-    current_user: User = Depends(get_current_user),
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """현재 사용자의 프로필 정보를 조회합니다."""
-    return current_user
+    try:
+        print(f"Attempting to get profile for user ID: {current_user.id}")
+        user = db.query(models.User).filter(models.User.id == current_user.id).first()
+        if user is None:
+            print(f"User not found in database for ID: {current_user.id}")
+            raise HTTPException(status_code=404, detail="User not found")
+        print(f"Successfully retrieved user profile: {user.name}")
+        
+        # 사용자 정보를 딕셔너리로 변환하여 반환
+        return {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "created_at": user.created_at
+        }
+    except Exception as e:
+        print(f"Error in get_user_profile: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.put("/users/profile", response_model=UserProfile)
 async def update_user_profile(

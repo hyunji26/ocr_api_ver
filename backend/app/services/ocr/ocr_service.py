@@ -210,8 +210,12 @@ class OCRService:
     def _clean_and_normalize_text(self, text: str) -> str:
         """텍스트 정제 및 정규화"""
         try:
+            # 영어와 특수문자 제거
+            cleaned = re.sub(r'[a-zA-Z]', '', text)  # 영어 제거
+            cleaned = re.sub(r'[^\w\s가-힣]', '', cleaned)  # 한글, 숫자, 공백을 제외한 모든 문자 제거
+            
             # 기본 정제
-            cleaned = text.strip()
+            cleaned = cleaned.strip()
             
             # 공백 정규화 (연속된 공백을 하나로)
             cleaned = re.sub(r'\s+', ' ', cleaned)

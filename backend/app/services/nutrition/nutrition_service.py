@@ -142,8 +142,12 @@ class NutritionService:
         # 원본 텍스트 보존
         original = food_name
         
+        # 영어와 특수문자 제거
+        cleaned = re.sub(r'[a-zA-Z]', '', food_name)  # 영어 제거
+        cleaned = re.sub(r'[^\w\s가-힣]', '', cleaned)  # 한글, 숫자, 공백을 제외한 모든 문자 제거
+        
         # 특수문자 및 공백 처리 (괄호는 유지)
-        cleaned = food_name.strip()
+        cleaned = cleaned.strip()
         
         # 수량 정보 제거 (예: "2인분", "2인이상" 등)
         cleaned = re.sub(r'\s*\d+인(?:분|이상|)?\s*', '', cleaned)
@@ -196,7 +200,7 @@ class NutritionService:
         
         # 수식어 제거
         for modifier in modifiers:
-            cleaned = re.sub(f'{modifier}\s*', '', cleaned)
+            cleaned = re.sub(f'{modifier}\\s*', '', cleaned)
         
         # OCR 오류 수정
         ocr_errors = {
@@ -263,6 +267,11 @@ class NutritionService:
             # 음식 이름 정제
             cleaned_name = self._clean_food_name(food_name)
             logger.info(f"정제된 음식 이름: {cleaned_name} (원본: {food_name})")
+            
+            # 정제된 텍스트가 2글자 이하면 검색하지 않음
+            if len(cleaned_name) <= 2:
+                logger.warning(f"'{cleaned_name}' 텍스트가 너무 짧아서 검색하지 않음")
+                return None
             
             # 식약처 API로 검색
             result = await self._search_food(cleaned_name)

@@ -11,6 +11,33 @@ const API_BASE_URL = `http://${window.location.hostname}:8000`;  // 현재 호�
 console.log('Current hostname:', window.location.hostname);
 console.log('API Base URL:', API_BASE_URL);
 
+const MealCard = ({ food }) => (
+  <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+    <div className="flex justify-between items-start mb-3">
+      <div>
+        <h3 className="text-xl font-semibold text-gray-800">{food.name}</h3>
+        <div className="text-sm font-medium text-gray-600 mt-1">{food.calories} kcal</div>
+      </div>
+    </div>
+    <div className="flex justify-between items-center mt-4">
+      <div className="flex justify-between w-full max-w-xs">
+        <div className="flex flex-col items-center px-4 border-r border-gray-200">
+          <div className="text-xs font-medium text-gray-500">탄수화물</div>
+          <div className="mt-1 text-sm font-semibold text-emerald-600">{food.nutrients.carbohydrates}g</div>
+        </div>
+        <div className="flex flex-col items-center px-4 border-r border-gray-200">
+          <div className="text-xs font-medium text-gray-500">단백질</div>
+          <div className="mt-1 text-sm font-semibold text-emerald-600">{food.nutrients.protein}g</div>
+        </div>
+        <div className="flex flex-col items-center px-4">
+          <div className="text-xs font-medium text-gray-500">지방</div>
+          <div className="mt-1 text-sm font-semibold text-emerald-600">{food.nutrients.fat}g</div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 const OcrResultPage = () => {
   const navigate = useNavigate();
   const location = useLocation();

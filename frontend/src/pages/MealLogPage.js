@@ -47,32 +47,30 @@ const MealLogPage = () => {
         let total = 0;
         let allMeals = [];
         
-        Object.entries(mealsData).forEach(([type, foods]) => {
-          foods.forEach(food => {
-            const mealCalories = food.calories;
-            total += mealCalories;
-            
+        // 아침, 점심, 저녁 식사를 하나의 배열로 합치고 시간 정보 추가
+        Object.entries(mealsData).forEach(([mealType, meals]) => {
+          meals.forEach(meal => {
+            total += meal.calories;
             allMeals.push({
-              id: food.id,
-              type: type.charAt(0).toUpperCase() + type.slice(1),
-              time: type === 'breakfast' ? '아침' : type === 'lunch' ? '점심' : '저녁',
-              name: food.name,
-              calories: food.calories,
+              id: meal.id,
+              type: mealType,
+              name: meal.name,
+              calories: meal.calories,
               nutrients: {
-                carbs: food.nutrients.carbohydrates,
-                protein: food.nutrients.protein,
-                fat: food.nutrients.fat
+                carbohydrates: meal.nutrients.carbohydrates,
+                protein: meal.nutrients.protein,
+                fat: meal.nutrients.fat
               },
-              timestamp: food.timestamp
+              time: meal.timestamp
             });
           });
         });
 
-        // 시간순으로 정렬 (최신이 맨 아래로)
-        allMeals.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-        setTotalCalories(total);
+        // 시간순으로 정렬 (오래된 순)
+        allMeals.sort((a, b) => new Date(a.time) - new Date(b.time));
+        
         setMealLogs(allMeals);
+        setTotalCalories(total);
       } catch (error) {
         console.error('Error fetching meal data:', error);
         setMealLogs([]);
@@ -94,46 +92,68 @@ const MealLogPage = () => {
     setShowAddModal(true);
   };
 
-  const MealCard = ({ food, mealType, mealTime, mealId }) => (
-    <div className="bg-white bg-opacity-20 backdrop-blur-lg rounded-xl p-4 mb-4 relative">
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <h3 className="text-xl font-semibold text-gray-800">{food.name}</h3>
-          <div className="flex items-center mt-1">
-            <span className="text-sm text-gray-600">{mealTime}</span>
-          </div>
-        </div>
-        <div className="flex items-start space-x-4">
-          <div className="text-right">
-            <div className="text-sm font-medium text-gray-600">{food.calories} kcal</div>
-          </div>
-          <button
-            onClick={() => navigate(`/edit-meal/${mealId}`)}
-            className="text-emerald-600 hover:text-emerald-700 transition-colors"
-          >
-            <i className="fas fa-edit text-lg"></i>
-          </button>
-        </div>
-      </div>
+  const MealCard = ({ food, mealType, mealTime, mealId }) => {
+    // 시간 포맷팅 함수
+    const formatTime = (timeStr) => {
+      const date = new Date(timeStr);
+      const hours = date.getHours().toString().padStart(2, '0');
+      const minutes = date.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
 
-      <div className="flex justify-between items-center mt-4">
-        <div className="flex space-x-4">
-          <div className="text-center">
-            <div className="text-xs text-gray-500">탄수화물</div>
-            <div className="text-sm font-medium text-gray-700">{food.nutrients.carbs}g</div>
+    // 식사 타입 한글 변환
+    const getMealTypeKorean = (type) => {
+      const types = {
+        breakfast: '아침',
+        lunch: '점심',
+        dinner: '저녁'
+      };
+      return types[type] || type;
+    };
+
+    return (
+      <div className="bg-white bg-opacity-20 backdrop-blur-lg rounded-xl p-4 mb-4 relative">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <h3 className="text-xl font-semibold text-gray-800">{food.name}</h3>
+            <div className="flex items-center mt-1 space-x-2">
+              <span className="text-sm text-gray-600">{getMealTypeKorean(mealType)}</span>
+              <span className="text-sm text-gray-400">•</span>
+              <span className="text-sm text-gray-600">{formatTime(mealTime)}</span>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-xs text-gray-500">단백질</div>
-            <div className="text-sm font-medium text-gray-700">{food.nutrients.protein}g</div>
+          <div className="flex items-start space-x-4">
+            <div className="text-right">
+              <div className="text-sm font-medium text-gray-600">{food.calories} kcal</div>
+            </div>
+            <button
+              onClick={() => navigate(`/edit-meal/${mealId}`)}
+              className="text-emerald-600 hover:text-emerald-700 transition-colors"
+            >
+              <i className="fas fa-edit text-lg"></i>
+            </button>
           </div>
-          <div className="text-center">
-            <div className="text-xs text-gray-500">지방</div>
-            <div className="text-sm font-medium text-gray-700">{food.nutrients.fat}g</div>
+        </div>
+
+        <div className="flex justify-between items-center mt-4">
+          <div className="flex justify-between w-full max-w-xs">
+            <div className="flex flex-col items-center px-4 border-r border-gray-200">
+              <div className="text-xs font-medium text-gray-500">탄수화물</div>
+              <div className="mt-1 text-sm font-semibold text-emerald-600">{food.nutrients.carbohydrates}g</div>
+            </div>
+            <div className="flex flex-col items-center px-4 border-r border-gray-200">
+              <div className="text-xs font-medium text-gray-500">단백질</div>
+              <div className="mt-1 text-sm font-semibold text-emerald-600">{food.nutrients.protein}g</div>
+            </div>
+            <div className="flex flex-col items-center px-4">
+              <div className="text-xs font-medium text-gray-500">지방</div>
+              <div className="mt-1 text-sm font-semibold text-emerald-600">{food.nutrients.fat}g</div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-400 to-emerald-50 font-sans">

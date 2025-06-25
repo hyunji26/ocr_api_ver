@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1 import food_recognition, balance
 from app.database import engine, Base, create_tables
@@ -12,13 +12,7 @@ from datetime import datetime
 KST = pytz.timezone('Asia/Seoul')
 
 # 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True  # 기존 로그 설정을 강제로 덮어씁니다
-)
-
-# 로거 가져오기
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 각 모듈의 로거 레벨 설정
@@ -30,23 +24,28 @@ logging.getLogger('app.api.v1.balance').setLevel(logging.INFO)
 app = FastAPI(title="Food Recognition API")
 
 # CORS 설정
+origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",           # 로컬 개발용
-        "http://127.0.0.1:3000",          # 로컬 개발용 (대체 주소)
-        "http://192.168.45.153:3000",     # 개발 서버 IP
-        "http://192.168.45.144:3000",     # 클라이언트 IP
-        "http://192.168.45.89:3000",      # 클라이언트 IP
-        "http://192.168.45.153",          # IP만 있는 경우
-        "*"                               # 모든 origin 허용
-    ],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],                  # 모든 HTTP 메서드 허용
-    allow_headers=["*"],                  # 모든 헤더 허용
-    expose_headers=["*"],                 # 모든 헤더 노출
-    max_age=3600,                        # preflight 요청 캐시 시간 (1시간)
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# 요청 로깅 미들웨어
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"Request path: {request.url.path}")
+    logger.info(f"Request headers: {request.headers}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
 
 # API 라우터 등록
 app.include_router(food_recognition.router, prefix="/api/v1")

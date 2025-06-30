@@ -67,23 +67,11 @@ const MainPage = () => {
         if (!statsResponse.ok) {
           // 토큰이 만료된 경우
           if (statsResponse.status === 401) {
-            // 새로운 토큰 발급
-            const tokenResponse = await fetch(`${API_BASE_URL}/api/v1/balance/token`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              }
-            });
-            
-            if (tokenResponse.ok) {
-              const data = await tokenResponse.json();
-              localStorage.setItem('token', data.access_token);
-              // 새로운 토큰으로 재시도
-              return fetchNutritionStats();
-            } else {
-              navigate('/login');
-              return;
-            }
+            // 로그인 페이지로 리다이렉트
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            navigate('/login');
+            return;
           }
           throw new Error(`Stats API Error: ${statsResponse.status}`);
         }

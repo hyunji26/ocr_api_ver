@@ -62,6 +62,12 @@ const ProfilePage = () => {
         });
 
         if (!userResponse.ok) {
+          if (userResponse.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            navigate('/login');
+            return;
+          }
           const errorText = await userResponse.text();
           console.error(`API 응답 에러 (${userResponse.status}):`, errorText);
           throw new Error(`API 요청 실패: ${userResponse.status} ${errorText}`);

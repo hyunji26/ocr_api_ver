@@ -4,6 +4,10 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
 from datetime import datetime
+import pytz
+
+# 한국 시간대 설정
+KST = pytz.timezone('Asia/Seoul')
 
 class MealType(str, enum.Enum):
     breakfast = "breakfast"
@@ -17,7 +21,7 @@ class Meal(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     meal_type = Column(SQLAlchemyEnum(MealType), nullable=False)
     food_name = Column(String)
-    timestamp = Column(DateTime, default=datetime.now)
+    timestamp = Column(DateTime, default=lambda: datetime.now(KST))
     calories = Column(Float)
     carbohydrates = Column(Float)
     protein = Column(Float)
@@ -34,5 +38,5 @@ class User(Base):
     name = Column(String, nullable=True)
     profile_image = Column(String, nullable=True)
     daily_calorie_goal = Column(Integer, default=2000)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=lambda: datetime.now(KST))
     meals = relationship("Meal", back_populates="user") 

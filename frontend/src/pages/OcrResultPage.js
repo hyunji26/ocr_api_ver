@@ -61,6 +61,15 @@ const OcrResultPage = () => {
     meal_calories: []
   });
   
+  // 전달받은 날짜가 있으면 사용, 없으면 현재 날짜 사용
+  const [selectedDate, setSelectedDate] = useState(
+    location.state?.selectedDate || new Date().toISOString().split('T')[0]
+  );
+  
+  const [selectedTime, setSelectedTime] = useState(
+    new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+  );
+
   const fetchBalanceStats = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -192,44 +201,51 @@ const OcrResultPage = () => {
       const selectedItems = results.filter(item => selectedFoods.has(item.name));
       
       for (const item of selectedItems) {
+        // 선택한 날짜와 시간으로 timestamp 생성
+        const [year, month, day] = selectedDate.split('-');
+        const [hours, minutes] = selectedTime.split(':');
+        const timestamp = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          parseInt(hours),
+          parseInt(minutes)
+        ).toISOString();
+
         const mealData = {
           meal_type: mealType.toLowerCase(),
           food_name: item.name,
           calories: parseFloat(item.calories || 0),
           carbohydrates: parseFloat(item.nutrients?.carbohydrates || 0),
           protein: parseFloat(item.nutrients?.protein || 0),
-          fat: parseFloat(item.nutrients?.fat || 0)
+          fat: parseFloat(item.nutrients?.fat || 0),
+          timestamp: timestamp
         };
 
-        const token = localStorage.getItem('token');
-        if (!token) {
-          navigate('/login');
-          return;
-        }
-
-        const response = await fetch(`${API_BASE_URL}/api/v1/balance/meals`, {
+        const response = await fetch('/api/v1/meals', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           },
-          body: JSON.stringify(mealData),
+          body: JSON.stringify(mealData)
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.detail || 'Failed to save meal');
+          throw new Error('Failed to save meal');
         }
       }
 
-      // 저장 성공 후 상태 업데이트 트리거
+      setShowSaveAlert(true);
       triggerRefresh();
       
-      // 저장 완료 alert 표시
-      setShowSaveAlert(true);
+      // 저장 완료 후 이전 페이지로 돌아가기
+      setTimeout(() => {
+        navigate(location.state?.returnPath || '/meal-log');
+      }, 1500);
     } catch (error) {
       console.error('Error saving meals:', error);
-      alert('음식 저장 중 오류가 발생했습니다: ' + error.message);
+      alert('식사 저장 중 오류가 발생했습니다.');
     } finally {
       setIsSaving(false);
     }
